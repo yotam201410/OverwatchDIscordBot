@@ -1,27 +1,18 @@
+import json
 import discord
-import requests
-from discord.ext import commands
 from OverwatchUserDirectory import User
+from discord.ext import commands
 from Globals import Globals
-from requests.auth import HTTPBasicAuth
 
 
 def getBattleTagWithMember(member: discord.Member):
-    data = Globals().jsonfile
-    for dic in data:
-        if int(dic["discordUserID"]) == member.id:
-            return dic["battleTag"]
-    return None
-
-
-def create_access_token(client_id, client_secret, region='eu'):
-    url = "https://%s.battle.net/oauth/token" % region
-    body = {"grant_type": 'client_credentials'}
-    auth = HTTPBasicAuth(client_id, client_secret)
-
-    response = requests.post(url, data=body, auth=auth)
-    print(response)
-    return response.json()
+    data = open("webApp/users.json", 'r')
+    data = json.load(data)
+    print(data)
+    try:
+        return data[str(member.id)]
+    except KeyError:
+        return None
 
 
 class Overwatch(commands.Cog):
@@ -48,18 +39,23 @@ class Overwatch(commands.Cog):
             if user.ratings is not None:
                 try:
                     embed = discord.Embed(title=f"{battleTag} tank Competitive sr")
+                    embed.set_thumbnail(url=user.ratings.tank.rankIcon)
                     embed.add_field(name="Tank", value=str(user.ratings.tank.level))
                     await ctx.send(embed=embed)
                 except AttributeError:
                     print(False)
                 try:
                     embed = discord.Embed(title=f"{battleTag} damage Competitive sr")
+                    embed.set_thumbnail(url=user.ratings.damage.rankIcon)
                     embed.add_field(name="support", value=str(user.ratings.damage.level))
                     await ctx.send(embed=embed)
                 except AttributeError:
                     pass
                 try:
+
                     embed = discord.Embed(title=f"{battleTag} support Competitive sr")
+                    embed.set_thumbnail(url=user.ratings.support.rankIcon)
+
                     embed.add_field(name="support", value=str(user.ratings.support.level))
                     await ctx.send(embed=embed)
                 except AttributeError:

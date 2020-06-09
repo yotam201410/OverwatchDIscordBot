@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import asyncio
-from PythonPart.webApp.main import appRun
+from webApp.main import appRun
 from discord.ext import commands
 
 times = 0
@@ -70,6 +70,6 @@ WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)"""
                 client.load_extension(f"cogs.{filename[:-3]}")
         times += 1
 
-
+token = "NjMwNDA4Njc3Mjk1MTI4NTk2.Xt8hWA.9rQqpE9ePH_flCWqb-a89fvZgTc"
 
 client.run(token)

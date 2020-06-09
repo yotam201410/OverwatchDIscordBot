@@ -2,25 +2,27 @@ import sqlite3
 import requests
 from requests.auth import HTTPBasicAuth
 from flask import Flask, request, Response
-from PythonPart.Globals import Globals
+from Globals import Globals
+import json
 
 app = Flask("idk")
 
 
 def getBattleNetToken(code, region):
     url = "https://%s.battle.net/oauth/token" % region
-    body = {"grant_type": 'client_credentials', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL}"}
+    body = {"grant_type": 'authorization_code', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL}"}
     auth = HTTPBasicAuth(Globals.clientID, Globals.clientSecret)
     response = requests.post(url, data=body, auth=auth)
-    print(response)
-    return response.json()
+    response = response.json()
+    return response["access_token"]
+
 
 
 def getBattleTag(BattleNetToken, region):
     url = f"https://{region}.battle.net/oauth/userinfo?access_token={BattleNetToken}"
     print(url)
     response = requests.get(url)
-    return response.json() if response.status_code == 200 else print(response.status_code)
+    return response.json()["battletag"] if response.status_code == 200 else print(response.status_code)
 
 
 def checkToken(battleNetToken):
@@ -38,11 +40,13 @@ def checkToken(battleNetToken):
 def login():
     battleNetCode = request.args.get('code')
     discordUserID = request.args.get('state')
-    battleNetToken = getBattleNetToken(battleNetCode, "eu")["access_token"]
-    print(f"the token is {battleNetToken} and the status is 200" if checkToken(
-        battleNetToken) == 200 else f"the token is not good")
-    print(battleNetToken, battleNetCode)
-    print(getBattleTag(battleNetToken, "eu"))
+    battleNetToken = getBattleNetToken(battleNetCode, "eu")
+    with open("users.json") as r:
+        data = json.load(r)
+        r.close()
+    with open("users.json", 'w') as w:
+        data[f"{discordUserID}"] = getBattleTag(battleNetToken, "eu")
+        json.dump(data, w)
     return Response("", status=200)
 
 
