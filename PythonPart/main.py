@@ -71,6 +71,5 @@ WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)"""
         times += 1
 
 
-ow = 'NjUyMTMxNzAyMTY4MzU0ODE2.Xej_CQ.oa0Ty9ZERUMCAa1mJwjvVOOlOag'
-test = "NjMwNDA4Njc3Mjk1MTI4NTk2.XaOIWg._D25SLMU9CIGFM9jO5mSJumLL74"
-client.run(test)
+
+client.run(token)
