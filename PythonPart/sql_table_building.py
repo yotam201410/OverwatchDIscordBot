@@ -74,7 +74,7 @@ blue_team_player_6 integer
 )
 """)
 c.execute("""create table ow_user(
-user_id integer,
+user_id integer PRIMARY KEY UNIQUE,
 battle_tag mediumtext)
 """)
 conn.commit()

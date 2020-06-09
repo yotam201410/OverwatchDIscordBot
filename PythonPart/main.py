@@ -1,6 +1,7 @@
 import os
 import sqlite3
-
+import asyncio
+from PythonPart.webApp.main import appRun
 from discord.ext import commands
 
 times = 0
@@ -65,7 +66,7 @@ WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)"""
     global times
     if times == 0:
         for filename in os.listdir("cogs"):
-            if filename.endswith(".py"):
+            if filename.endswith(".py") and filename != "__init__.py":
                 client.load_extension(f"cogs.{filename[:-3]}")
         times += 1
 
