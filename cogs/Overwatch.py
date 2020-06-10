@@ -1,6 +1,8 @@
 import json
 import discord
 from OverwatchUserDirectory import User
+from OverwatchUserDirectory.ratings.Ratings import Ratings
+from OverwatchUserDirectory.stats.stats import Stats
 from discord.ext import commands
 from Globals import Globals
 
@@ -76,7 +78,10 @@ class Overwatch(commands.Cog):
         clientID = "&client_id=" + Globals.clientID
         redirectURI = "&redirect_uri=" + Globals.redirect_URL
         state = "&state=" + str(ctx.author.id)
-        await ctx.send(baseURL + clientID + redirectURI + state)
+        try:
+            await ctx.author.send(baseURL + clientID + redirectURI + state)
+        except discord.HTTPException:
+            await ctx.send(baseURL + clientID + redirectURI + state)
 
     @overwatch.command(aliases=["rank", "ranking"])
     async def sr(self, ctx: commands.Context):
@@ -156,7 +161,8 @@ class Overwatch(commands.Cog):
                             embed.set_thumbnail(url=hero_thumbnail)
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}", value=str(embed_stats.__dict__[stat]))
+                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                                    value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
                         except KeyError:
                             await ctx.send(f"there is not such a stat as {hero_kind_of_stats}")
@@ -176,7 +182,8 @@ class Overwatch(commands.Cog):
                             embed.set_thumbnail(url=hero_thumbnail)
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}", value=str(embed_stats.__dict__[stat]))
+                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                                    value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
                         except KeyError:
                             await ctx.send(f"there is not such a stat as {hero_kind_of_stats}")
@@ -208,7 +215,8 @@ class Overwatch(commands.Cog):
                                 url="https://pbs.twimg.com/profile_images/939130553835704320/xeqC89JR_400x400.jpg")
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}", value=str(embed_stats.__dict__[stat]))
+                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                                    value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
                         except KeyError:
                             await ctx.send(f"there is not such kind as {kind}")
@@ -223,7 +231,8 @@ class Overwatch(commands.Cog):
                                 url="https://cdn.discordapp.com/attachments/351437490587959297/720210674038472714/unknown.png")
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}", value=str(embed_stats.__dict__[stat]))
+                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                                    value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
 
                         except KeyError:
@@ -236,6 +245,23 @@ class Overwatch(commands.Cog):
                 await ctx.send("your profile is private")
         else:
             await ctx.send(f"you are not logged in please use the overwatch login command")
+
+    @overwatch.command()
+    async def profile(self, ctx):
+        battletag = getBattleTagWithMember(ctx.author)
+        embed = discord.Embed(title=f"{battletag} profile")
+        user = User(battletag)
+        embed.set_thumbnail(url=user.icon)
+        for obj in user.__dict__:
+            if not isinstance(user.__dict__[obj], Stats) and not isinstance(user.__dict__[obj], Ratings) and \
+                    user.__dict__[obj] is not "" and user.__dict__[obj] is not None:
+                embed.add_field(name=f"{make_spcace(obj)}", value=f"{str(user.__dict__[obj])}")
+        await ctx.send(embed=embed)
+
+    @herostats.error
+    async def herostats_error(self, ctx, error):
+        await ctx.send(
+            "you have to fallow this template\n {prefix}ow herostats {[competitive or quick_play]} {hero} {[assists, average, best, game, matchAwards, miscellaneous]}")
 
     @all_heroes.error
     async def all_heroes_error(self, ctx, error):

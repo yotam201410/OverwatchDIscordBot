@@ -24,32 +24,10 @@ class ServerPreference(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @commands.group(name="setup", invoke_without_command=True)
+    @commands.group(name="setup", invoke_without_command=False)
     @commands.has_permissions(administrator=True)
     async def setup(self, ctx):
-        conn = sqlite3.connect(
-            "discord_bot.db")
-        c = conn.cursor()
-        c.execute("""SELECT * FROM server_preference
-                       WHERE guild_id = :guild_id""",
-                  {"guild_id": ctx.guild.id})
-        conn.commit()
-        data = c.fetchone()
-        conn.close()
-        prefix = data[1]
-        embed = discord.Embed(title="**Welcome to Valorant Bubbles Bot**", color=0xFF0000)
-        # embed.set_image(url=self.client.get_guild(681609760843366406).icon_url_as(format='jpg'))
-        embed.add_field(name="What is this bot?",
-                        value="This is Valorant Bubbles Bot it contains a lot of plugins like moderation voice create "
-                              "and more")
-        embed.add_field(name="Who programed it?", value="<@342725139626065920>")
-        embed.add_field(name="**How do i set up the bot? there is some commands:**", value="")
-        embed.add_field(name=f"{prefix}change_perfix", value="change the prefix of the bot")
-        embed.add_field(name=f"{prefix}set_report_channel",
-                        value="sets the channel that you would get the reports to by "
-                              "putting")
-        embed.add_field(name=f"{prefix}set_moderation_role",
-                        value="sets the moderation role by putting moderation role id")
+        pass
 
     @commands.command()
     async def change_prefix(self, ctx, prefix):
@@ -228,19 +206,19 @@ class ServerPreference(commands.Cog):
         await ctx.send(f"{ctx.author.mention} you have successfully enabled member count")
         conn.commit()
         conn.close()
+
     @setup.command()
     @commands.has_permissions(administrator=True)
-    async def pug(self,ctx:commands.Context,limit:int):
+    async def pug(self, ctx: commands.Context, limit: int):
         conn = sqlite3.connect("discord_bot.db")
         c = conn.cursor()
         if limit == 10 or limit == 12:
             c.execute("""UPDATE server_preference
             set pug_match_user_limit = :limit
-            where guild_id = :guild_id""",{"guild_id":ctx.guild.id,"limit":limit})
+            where guild_id = :guild_id""", {"guild_id": ctx.guild.id, "limit": limit})
             await ctx.send(f"{ctx.author.mention} you have seccesfull set the pug limit to {limit}")
         else:
             await ctx.send(f"{ctx.author.mention} you can only set them to 10 or 12")
-
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):

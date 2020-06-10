@@ -32,9 +32,8 @@ class User:
         website = requests.get(f"https://ovrstat.com/stats/pc/{user}")
         js = website.json()
         try:
-            self.name = js["name"]
-            self._icon = js["icon"]
-
+            self.battleTag = js["name"]
+            self.icon = js["icon"]
             self.levelIcon = js["levelIcon"]
             self.endorsement = js["endorsement"]
             self.endorsementIcon = js["endorsementIcon"]
