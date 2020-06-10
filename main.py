@@ -69,6 +69,6 @@ WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)"""
                 client.load_extension(f"cogs.{filename[:-3]}")
         times += 1
 
-token = "NjMwNDA4Njc3Mjk1MTI4NTk2.Xt-K3Q.2C0yWPF0ZnyE9fdxu4zHVMXZIi8"
+token = "NjMwNDA4Njc3Mjk1MTI4NTk2.XuDkFw.zP-7Tyorky7pcWkWURLNGuC65ls"
 
 client.run(token)
