@@ -91,6 +91,8 @@ async def on_ready():
         SELECT :guild_id, :prefix
         WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
                       {"guild_id": guild.id, "prefix": "!"})
+        conn.commit()
+        conn.close()
     global times
     if times == 0:
         for filename in os.listdir("cogs"):
