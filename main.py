@@ -69,7 +69,7 @@ async def on_command_error(ctx, error):
 
 @client.event
 async def on_ready():
-    print("bot is ready v 0.1")
+    print("bot is ready v 1.0")
     conn = sqlite3.connect(
         "discord_bot.db")
     c = conn.cursor()
