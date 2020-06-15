@@ -87,6 +87,4 @@ WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)"""
                 client.load_extension(f"cogs.{filename[:-3]}")
         times += 1
 
-
-
-client.run(token)
+client.run(os.environ["discord_token"])
