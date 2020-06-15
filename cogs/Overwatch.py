@@ -19,6 +19,19 @@ def getRow(sheet, discord_id):
     return None
 
 
+def get_rank_img(rank: str):
+    dic = {
+        "Bronze": "https://gamepedia.cursecdn.com/overwatch_gamepedia/8/89/Badge_1_Bronze.png?version=fa38e0c94d93c352f40367c620ddd5af",
+        "Silver": "https://gamepedia.cursecdn.com/overwatch_gamepedia/b/bb/Badge_2_Silver.png?version=d5f167d121ece4c68da7559fac9b5897",
+        "Gold": "https://gamepedia.cursecdn.com/overwatch_gamepedia/b/b8/Badge_3_Gold.png?version=a74dc72feb1a0306497263c1e0850411",
+        "Platinum": "https://gamepedia.cursecdn.com/overwatch_gamepedia/f/f8/Badge_4_Platinum.png?version=ac66a0d7101dc3e4f5e31109ffb3c21e",
+        "Diamond": "https://gamepedia.cursecdn.com/overwatch_gamepedia/2/2f/Badge_5_Diamond.png?version=bf806f5eb546cb9a1b71a04fa4cf3faa",
+        "Master": "https://gamepedia.cursecdn.com/overwatch_gamepedia/f/f0/Badge_6_Master.png?version=b572955550eafbd5e8f2e32566f2ca17",
+        "GrandMaster": "https://gamepedia.cursecdn.com/overwatch_gamepedia/8/87/Badge_7_Grandmaster.png?version=c7d21f01f2ecffcdcbdb367c425618f2",
+        "Top 500": "https://gamepedia.cursecdn.com/overwatch_gamepedia/7/73/Badge_8_Top_500.png?version=61fe40ef7c98c2fe2e699f8708bc9248"}
+    return dic[rank]
+
+
 def getBattleTagWithMember(member: discord.Member):
     scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
              "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
@@ -112,6 +125,7 @@ class Overwatch(commands.Cog):
             if user.ratings is not None:
                 try:
                     embed = discord.Embed(title=f"{battleTag} tank Competitive sr")
+                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
                     embed.set_thumbnail(url=user.ratings.tank.rankIcon)
                     embed.add_field(name="Tank", value=str(user.ratings.tank.level))
                     await ctx.send(embed=embed)
@@ -119,8 +133,9 @@ class Overwatch(commands.Cog):
                     pass
                 try:
                     embed = discord.Embed(title=f"{battleTag} damage Competitive sr")
+                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
                     embed.set_thumbnail(url=user.ratings.damage.rankIcon)
-                    embed.add_field(name="support", value=str(user.ratings.damage.level))
+                    embed.add_field(name="Damage", value=str(user.ratings.damage.level))
                     await ctx.send(embed=embed)
                 except AttributeError:
                     pass
@@ -128,16 +143,17 @@ class Overwatch(commands.Cog):
 
                     embed = discord.Embed(title=f"{battleTag} support Competitive sr")
                     embed.set_thumbnail(url=user.ratings.support.rankIcon)
-
-                    embed.add_field(name="support", value=str(user.ratings.support.level))
+                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
+                    embed.add_field(name="Support", value=str(user.ratings.support.level))
                     await ctx.send(embed=embed)
                 except AttributeError:
                     pass
                 avg = user.ratings.average_level
                 if avg is not None:
                     embed = discord.Embed(title=f"{battleTag} average Competitive sr")
-                    # add set author and thumbnail
-                    embed.add_field(name="average", value=str(user.ratings.average_level))
+                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
+                    embed.set_thumbnail(url=get_rank_img(get_rank(avg)))
+                    embed.add_field(name="Average", value=str(user.ratings.average_level))
                     await ctx.send(embed=embed)
             else:
                 await ctx.send(
