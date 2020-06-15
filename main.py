@@ -2,7 +2,7 @@ import os
 import sqlite3
 import discord
 from discord.ext import commands
-
+import sql_table_building
 times = 0
 
 
@@ -73,13 +73,24 @@ async def on_ready():
     conn = sqlite3.connect(
         "discord_bot.db")
     c = conn.cursor()
-    for guild in client.guilds:
-        c.execute("""INSERT INTO server_preference(guild_id,prefix)
-SELECT :guild_id, :prefix
-WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
-                  {"guild_id": guild.id, "prefix": "!"})
-    conn.commit()
-    conn.close()
+    try:
+        for guild in client.guilds:
+            c.execute("""INSERT INTO server_preference(guild_id,prefix)
+    SELECT :guild_id, :prefix
+    WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
+                      {"guild_id": guild.id, "prefix": "!"})
+    except:
+        conn.commit()
+        conn.close()
+        sql_table_building.idk()
+        conn = sqlite3.connect(
+            "discord_bot.db")
+        c = conn.cursor()
+        for guild in client.guilds:
+            c.execute("""INSERT INTO server_preference(guild_id,prefix)
+        SELECT :guild_id, :prefix
+        WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
+                      {"guild_id": guild.id, "prefix": "!"})
     global times
     if times == 0:
         for filename in os.listdir("cogs"):
