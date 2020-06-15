@@ -1,6 +1,6 @@
 import os
 import sqlite3
-
+import discord
 from discord.ext import commands
 
 times = 0
@@ -50,6 +50,24 @@ async def on_guild_remove(guild):
 
 
 @client.event
+async def on_command_error(ctx, error):
+    conn = sqlite3.connect("discord_bot.db")
+    c = conn.cursor()
+    c.execute("""select prefix from server_preference
+    where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+    prefix = c.fetchone()[0]
+    if isinstance(error, commands.CommandNotFound):
+        embed = discord.Embed(title="all commands", colour=0x0000ff,
+                              description=f"**commands prefix {prefix} **\nall of the help module commands")
+        embed.set_thumbnail(url=client.user.avatar_url)
+        embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
+        embed.add_field(name=f"**{prefix}help setup**", value="all of the commands of the setup module")
+        embed.add_field(name=f"**{prefix}help voice**", value="all of the commands of the voice module")
+        embed.add_field(name=f"**{prefix}help ow**", value="all of the commands of the overwatch module")
+        await ctx.send(embed=embed)
+
+
+@client.event
 async def on_ready():
     print("bot is ready v 0.1")
     conn = sqlite3.connect(
@@ -69,6 +87,6 @@ WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)"""
                 client.load_extension(f"cogs.{filename[:-3]}")
         times += 1
 
-token = "NjMwNDA4Njc3Mjk1MTI4NTk2.XuDkFw.zP-7Tyorky7pcWkWURLNGuC65ls"
+
 
 client.run(token)

@@ -7,3 +7,5 @@ setuptools~=47.1.1
 requests~=2.23.0
 Flask~=1.1.2
 gunicorn==20.0.4
+gspread~=3.6.0
+oauth2client~=4.1.3

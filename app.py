@@ -1,4 +1,5 @@
-import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from flask import Flask, request, Response
 from requests.auth import HTTPBasicAuth
@@ -8,12 +9,30 @@ from Globals import Globals
 app = Flask("idk")
 
 
+def getRow(sheet, discord_id):
+    counter = 0
+    data = sheet.get_all_values()
+    for i in data:
+        counter += 1
+        if i[0] == str(discord_id):
+            return counter
+    return None
+
+
+def updateSheet(sheet, discord_id, battleTag, ip_address):
+    row = getRow(sheet, discord_id)
+    sheet.update_cell(row, 1, str(discord_id))
+    sheet.update_cell(row, 2, str(battleTag))
+    sheet.update_cell(row, 3, str(ip_address))
+
+
 def getBattleNetToken(code, region):
     url = "https://%s.battle.net/oauth/token" % region
     body = {"grant_type": 'authorization_code', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL}"}
     auth = HTTPBasicAuth(Globals.clientID, Globals.clientSecret)
     response = requests.post(url, data=body, auth=auth)
     response = response.json()
+    print(response)
     return response["access_token"]
 
 
@@ -39,13 +58,17 @@ def login():
     battleNetCode = request.args.get('code')
     discordUserID = request.args.get('state')
     battleNetToken = getBattleNetToken(battleNetCode, "eu")
-    with open("users.json") as r:
-        data = json.load(r)
-        r.close()
-    with open("users.json", 'w') as w:
-        data[f"{discordUserID}"] = [getBattleTag(battleNetToken, "eu"), request.remote_addr]
-        json.dump(data, w)
-    return Response("", status=200)
+    battleTag = getBattleTag(battleNetToken, "eu")
+    scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
+             "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("ow_users").sheet1
+    if getRow(sheet, discordUserID) is None:
+        sheet.insert_row([f"{discordUserID}", f"{battleTag}", f"{request.remote_addr}"])
+    else:
+        updateSheet(sheet, discordUserID, battleTag, request.remote_addr)
+    return Response(f"{battleTag}", status=200)
 
 
 def appRun():

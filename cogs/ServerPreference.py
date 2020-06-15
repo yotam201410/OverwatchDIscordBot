@@ -24,7 +24,7 @@ class ServerPreference(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    @commands.group(name="setup", invoke_without_command=False)
+    @commands.group(name="setup")
     @commands.has_permissions(administrator=True)
     async def setup(self, ctx):
         pass
@@ -40,6 +40,47 @@ class ServerPreference(commands.Cog):
         WHERE guild_id = :guild""", {"prefix": prefix, "guild": ctx.guild.id})
         conn.commit()
         conn.close()
+
+    @setup.command()
+    @commands.has_permissions(administrator=True)
+    async def help(self, ctx):
+        conn = sqlite3.connect("discord_bot.db")
+        c = conn.cursor()
+        c.execute("""select prefix from server_preference
+            where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+        data = c.fetchone()
+        conn.close()
+        prefix = data[0]
+        embed = discord.Embed(title="setup help", colour=0xff0000)
+        embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
+        embed.set_thumbnail(url=self.client.user.default_avatar_url)
+        embed.add_field(name="**" + prefix + "change_prefix {prefix}**",
+                        value="changes the command prefix\n **the prefix can only be between 1-5 chars**",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup report_channel {channel id}**",
+                        value="changes/sets the place where the reports will be sent",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup moderator_role {role id}**",
+                        value="changes/sets the moderator role id",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup helper_role {role id}**", value="changes/sets the helpers role id",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup audit_log_channel {channel id}**",
+                        value="changes/sets the place where the audit log messages will be sent",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup commands_log_channel {channel id} **",
+                        value="changes/sets the place where the commands log messages will be sent",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup voice_create_category {category id}**",
+                        value="changes/sets the place where the join to create a channel channel will be created",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup voice**", value="creates the join to create a channel",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup member_count**", value="create the member count channel",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "setup pug**", value="sets/update the pug limit",
+                        inline=False)
+        await ctx.send(embed=embed)
 
     @setup.command()
     @commands.has_permissions(administrator=True)

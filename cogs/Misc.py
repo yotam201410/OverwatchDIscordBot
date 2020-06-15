@@ -22,9 +22,11 @@ class Misc(commands.Cog):
         format_1 = 'https://discordapp.com/channels/'
         voice_channel = ctx.author.voice.channel.id
         await ctx.send(f"{format_1}{server_id}/{voice_channel}")
+
     @commands.command()
-    async def ping(self,ctx):
-        await ctx.send(f"{round(self.client.latency*1000)}ms")
+    async def ping(self, ctx):
+        await ctx.send(f"{round(self.client.latency * 1000)}ms")
+
 
 def setup(client):
     client.add_cog(Misc(client))

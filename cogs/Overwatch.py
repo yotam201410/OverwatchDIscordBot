@@ -1,18 +1,35 @@
-import json
 import discord
+import gspread
+from discord.ext import commands
+from oauth2client.service_account import ServiceAccountCredentials
+import sqlite3
+from Globals import Globals
 from OverwatchUserDirectory import User
 from OverwatchUserDirectory.ratings.Ratings import Ratings
 from OverwatchUserDirectory.stats.stats import Stats
-from discord.ext import commands
-from Globals import Globals
+
+
+def getRow(sheet, discord_id):
+    counter = 0
+    data = sheet.get_all_values()
+    for i in data:
+        counter += 1
+        if i[0] == str(discord_id):
+            return counter
+    return None
 
 
 def getBattleTagWithMember(member: discord.Member):
-    data = open("users.json", 'r')
-    data = json.load(data)
-    try:
-        return data[str(member.id)][0]
-    except KeyError:
+    scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
+             "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("ow_users").sheet1
+    row = getRow(sheet, member.id)
+    if row is not None:
+        data = sheet.row_values(row)
+        return data[1]
+    else:
         return None
 
 
@@ -32,6 +49,23 @@ def get_role(name: str, roles):
             return i
 
 
+def get_rank(sr):
+    if sr < 1500:
+        return "Bronze"
+    elif sr < 2000:
+        return "Silver"
+    elif sr < 2500:
+        return "Gold"
+    elif sr < 3000:
+        return "Platinum"
+    elif sr < 3500:
+        return "Diamond"
+    elif sr < 4000:
+        return "Master"
+    else:
+        return "GrandMaster"
+
+
 async def giveRole(member: discord.Member, sr: int, ):
     roles_names = {"Bronze": discord.Colour(0xa45141), "Silver": discord.Colour(0x797979),
                    "Gold": discord.Colour(0xe6d04e), "Platinum": discord.Colour(0xB5C2C4),
@@ -47,20 +81,7 @@ async def giveRole(member: discord.Member, sr: int, ):
             await member.guild.create_role(name=role_name, permissions=server_roles[0].permissions,
                                            colour=roles_names[role_name])
     server_roles = member.guild.roles
-    if sr < 1500:
-        role = get_role("Bronze", server_roles)
-    elif sr < 2000:
-        role = get_role("Silver", server_roles)
-    elif sr < 2500:
-        role = get_role("Gold", server_roles)
-    elif sr < 3000:
-        role = get_role("Platinum", server_roles)
-    elif sr < 3500:
-        role = get_role("Diamond", server_roles)
-    elif sr < 4000:
-        role = get_role("Master", server_roles)
-    else:
-        role = get_role("GrandMaster", server_roles)
+    role = get_role(get_rank(sr), server_roles)
     await member.add_roles(role)
 
 
@@ -115,6 +136,7 @@ class Overwatch(commands.Cog):
                 avg = user.ratings.average_level
                 if avg is not None:
                     embed = discord.Embed(title=f"{battleTag} average Competitive sr")
+                    # add set author and thumbnail
                     embed.add_field(name="average", value=str(user.ratings.average_level))
                     await ctx.send(embed=embed)
             else:
@@ -249,13 +271,45 @@ class Overwatch(commands.Cog):
     @overwatch.command()
     async def profile(self, ctx):
         battletag = getBattleTagWithMember(ctx.author)
-        embed = discord.Embed(title=f"{battletag} profile")
-        user = User(battletag)
-        embed.set_thumbnail(url=user.icon)
-        for obj in user.__dict__:
-            if not isinstance(user.__dict__[obj], Stats) and not isinstance(user.__dict__[obj], Ratings) and \
-                    user.__dict__[obj] is not "" and user.__dict__[obj] is not None:
-                embed.add_field(name=f"{make_spcace(obj)}", value=f"{str(user.__dict__[obj])}")
+        if battletag is not None:
+            embed = discord.Embed(title=f"{battletag} profile")
+            user = User(battletag)
+            embed.set_thumbnail(url=user.icon)
+            for obj in user.__dict__:
+                if not isinstance(user.__dict__[obj], Stats) and not isinstance(user.__dict__[obj], Ratings) and \
+                        user.__dict__[obj] is not "" and user.__dict__[obj] is not None:
+                    embed.add_field(name=f"{make_spcace(obj)}", value=f"{str(user.__dict__[obj])}")
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("you have to login")
+
+    @overwatch.command()
+    async def help(self, ctx):
+        conn = sqlite3.connect("discord_bot.db")
+        c = conn.cursor()
+        c.execute("""select prefix from server_preference
+            where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+        data = c.fetchone()
+        conn.close()
+        prefix = data[0]
+        embed = discord.Embed(title=f"overwatch help", colour=0xFFFFFF)
+        embed.set_thumbnail(
+            url="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Overwatch_circle_logo.svg/600px-Overwatch_circle_logo.svg.png")
+        embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
+        embed.add_field(name="**" + prefix + "ow login**",
+                        value="sends url at private which asks you to authorise the access to get you battle tag",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "ow sr**", value="sends your all of your sr details", inline=False)
+        embed.add_field(name="**" + prefix + "ow give_role**",
+                        value="gives you a rank role as your highest rank\n **does not give you a top 500**",
+                        inline=False)
+        embed.add_field(
+            name="**" + prefix + "ow herostats {[competitive or quick_play]} {hero} {[assists, average, best, game, matchAwards, miscellaneous]**",
+            value="sends all of your spastic stats in a hero at quick play or competitive", inline=False)
+        embed.add_field(
+            name="**" + prefix + "ow all_heroes {[competitive or quick_play]} {[assists, average, best, game, matchAwards, miscellaneous]}**",
+            value="sends all of your spastic stats in all heroes at quick play or competitive", inline=False)
+        embed.add_field(name="**" + prefix + "ow profile**", value="sends you profile values", inline=False)
         await ctx.send(embed=embed)
 
     @herostats.error

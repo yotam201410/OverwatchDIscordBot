@@ -138,6 +138,40 @@ class Voice(commands.Cog):
         pass
 
     @voice.command()
+    async def help(self, ctx):
+        conn = sqlite3.connect("discord_bot.db")
+        c = conn.cursor()
+        c.execute("""select prefix,join_to_create_a_room_channel_id from server_preference
+        where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+        data = c.fetchone()
+        conn.close()
+        prefix = data[0]
+        embed = discord.Embed(title="voice help", colour=0xFFFF00)
+        embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
+        embed.set_thumbnail(url="https://i.imgur.com/RqrPc2T.png")
+        embed.add_field(name=f"**{prefix}voice lock**",
+                        value="makes the room locked* so you are the only one who can enter the room\n **everyone will be able to see the channel but would not be abl enter**",
+                        inline=False)
+        embed.add_field(name=f"**{prefix}voice unlock**", value="makes the room open so everyone can enter",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "voice name {name}**", value="changes the name of the room", inline=False)
+        embed.add_field(name="**" + prefix + "voice limit {limit}**",
+                        value="makes the room limited to {limit} amount of members if you put 0there will be no limit",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "voice permit {@user}**", value="lets {user} enter the room", inline=False)
+        embed.add_field(name="**" + prefix + "voice reject {@user}**",
+                        value="makes the room unavailable* to {user} \n **the {user} will see the channel but he would not be able enter**",
+                        inline=False)
+        embed.add_field(name="**" + prefix + "voice claim**",
+                        value="if you are in a room which the owner is not in you will be the owner of the room",
+                        inline=False)
+        if data[1] is not None:
+            await ctx.send(f"you create a channel by joining {data[1]}")
+        else:
+            await ctx.send(f"contact the sever admin tp setup the voice muddle")
+        await ctx.send(embed=embed)
+
+    @voice.command()
     async def name(self, ctx: commands.Context, *args):
         """
         the commands gets an args

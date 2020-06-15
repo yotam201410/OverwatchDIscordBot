@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "cosmic-gizmo-280013",
+  "private_key_id": "5e7aeac0293208f38ffcfb9a338bde5232f8af95",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDLu8odo/GReYS4\nFEwwuhLmjSmdtSX+g9TyPi7jMWvdss9jA0J+NxI4RraBRvwL7qq+jMmKo4sG2ymR\nuaP+TzZ6EKK8pgvBKUe7eMCnmVYDYN4s6UivGt2Xf0fUiNeVoQ5wSOGor2fVlaBX\ngQApsJzlHirbV2bWgMrPNnZXPpOJgKmpI50lTkJg8er4MgY5i8N9Mj/k5njsIwdh\nSquuR0/68IDXt3P/HTfdEo5mzpbo0aX614lLN/ZNd/De6zUB+1GCHPOTrri5NvgR\nXw5Kqs7X9eLQuaS0iGhqnP0JZ/L0pjNjF2aNyCchfzS8yo9iTQEqxuCsTseJYXZG\nwxvw4MYZAgMBAAECggEADRS4PhW1CJQCsl6EQ1MpLEInSEPVpg0xHqIhOM9nJ3eI\nAwmWKvwueGxK4stL2tjGwAASXytPvX+UIFII7mbH3sfDaSUop0z3GPmAdipdWE9v\niHbshqitDmF621GzdN0fzBQT4BSuECvAnSmwWNzo//mDQyzOEqr3ip0qtUCUcL0z\no5f7/5AJizrWpNoOnBaBh1JXZr3lMO0dQi0PAjLjXkLQsAXjYEp1ZLRqun0Fg9Ii\n+pMCE7CA6MjxTqtQaU81Dn0z3MU8fonG3jQg/bNayKoUGZjJyaFxIV3c1mRaIKyw\nUixtM/LMACWFaHZ15N9ogn+A3qEcUVME6i27iB/HoQKBgQDmUCtjQOdO7elThLnU\nVf64Me8vm0Nm/GTYMTApb4QvtdaqEQsyVgmHmhhU1cxWrPJtwoKd7bLHXpxBU6Zb\nEp6ZDl8eN/s1GPJwwRhrSLCpr/x5/L4AumQBbMd/u4364zgifsX9ZvA3LRDIVTTC\nkgainpkF/tyi8/Bi1JCi1Tv1oQKBgQDidLoqXEBffVKIdUJ2N3hpsAC+cJnhROPu\nTShI9yd5ioOOZ03hLNrqSKmC/xaONS+LxMUoKUNKGFIj0H7dA9mRoggFAu6gEvY6\nTwV1oAd8IYayrsWdlC2t8sESyokfDmQ/m94J1VPp56OGPTQ9RKPijLIIkmtuXJ0K\nN5AZGUCNeQKBgA7DatSU737ev0ssQeE7lfVmtgdeM4bhfPFizcyKKnYIePcz2nzi\niP/ZP+AISG3x7iRdCJRpDUG8bdW+L/a8jdAP3McKHZ88tyXFKvSNl015S3ziV6ei\nSxDQUUV9108Sy6FicPyaYaGX0PCWjag/Rg+cjQCWYrxLWMhtCcx2UL6hAoGBANqh\nJzrOZbfLHmtwCgJn+3DN42n4/Bdok0X2Z/ZJ52qIOAq74YyL6a5XCJDYBca1wnmG\nN3JWpAhdArBhEpn+pYbckDGGaytQIziYIgU1wwQsuga4hUFlVdSikZS6xTeehVqD\n+RI1SxZ/9Hgdjtm38yE+BIQSGHYsI9FBY3VX0+LBAoGAeC0A4nF47Qpq/r2M5onc\nosU7gRU7D2KqJqAxpO71bgQUPBPBGVa7A9T3D7RWGZ8wkOokXu5GofgbTwgexVWN\nNhlaY7IQTggw5FH76bpLDZheeYx07UeNRBhrWL/2wLK5l1coeFFPYqCg3ZoJx4V0\nI6lHCVLj/JO3x7P/0x46Rw4=\n-----END PRIVATE KEY-----\n",
+  "client_email": "discordbot@cosmic-gizmo-280013.iam.gserviceaccount.com",
+  "client_id": "113307711892710950686",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/discordbot%40cosmic-gizmo-280013.iam.gserviceaccount.com"
+}
