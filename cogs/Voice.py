@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 import sqlite3
 
+from Globals import Globals
+
 
 def get_role_by_id(guild: discord.Guild, id: int):
     for role in guild.roles:
@@ -39,8 +41,7 @@ class Voice(commands.Cog):
         :param before:
         :param after:
         """
-        conn = sqlite3.connect("discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         c.execute("""select * from server_preference
         where guild_id = :guild_id""", {"guild_id": member.guild.id})
         server_preference_data = c.fetchone()
@@ -50,17 +51,15 @@ class Voice(commands.Cog):
                                             where voice_channel_id= :voice_channel_id""",
                           {"voice_channel_id": before.channel.id})
                 data = c.fetchone()
-                conn.commit()
                 if data is not None and len(before.channel.members) == 0:
                     c.execute("""DELETE FROM voice_data WHERE voice_channel_id = :voice_channel_id""",
                               {"voice_channel_id": before.channel.id})
-                    conn.commit()
+                    Globals.conn.commit()
                     await before.channel.delete()
                 c.execute("""SELECT * FROM voice_user_data
                                                    WHERE voice_owner_id = :owner_id""",
                           {"owner_id": member.id})
                 voice_user_data = c.fetchone()
-                conn.commit()
                 if voice_user_data is not None:  # if he had a channel before
                     voice_channel = await after.channel.guild.create_voice_channel(name=voice_user_data[1],
                                                                                    category=self.client.get_channel(
@@ -69,7 +68,7 @@ class Voice(commands.Cog):
                     c.execute("""INSERT INTO voice_data (voice_owner_id, voice_channel_id,guild_id)
                                                                                     VALUES(?,?,?)""",
                               (member.id, voice_channel.id, member.guild.id))
-                    conn.commit()
+                    Globals.conn.commit()
                 else:
                     voice_channel = await after.channel.guild.create_voice_channel(name=f"{member.name}'s channel",
                                                                                    category=self.client.get_channel(
@@ -78,7 +77,7 @@ class Voice(commands.Cog):
                     c.execute("""INSERT INTO voice_user_data(voice_owner_id,voice_name,voice_limit)
                                                 VALUES(?,?,?)""",
                               (member.id, f"{member.name}'s channel", 0))
-                    conn.commit()
+                    Globals.conn.commit()
                     c.execute("""INSERT INTO voice_data (voice_owner_id, voice_channel_id,guild_id)
                                                                 VALUES(?,?,?)""",
                               (member.id, voice_channel.id, member.guild.id))
@@ -93,11 +92,10 @@ class Voice(commands.Cog):
                                                             where voice_channel_id= :voice_channel_id""",
                           {"voice_channel_id": before.channel.id})
                 data = c.fetchone()
-                conn.commit()
                 if data is not None and len(before.channel.members) == 0:
                     c.execute("""DELETE FROM voice_data WHERE voice_channel_id = :voice_channel_id""",
                               {"voice_channel_id": before.channel.id})
-                    conn.commit()
+                    Globals.conn.commit()
                     await before.channel.delete()
         elif after.channel != before.channel and after.channel is not None:  # he joined a voice channel
             if after.channel.id == server_preference_data[6]:
@@ -105,7 +103,6 @@ class Voice(commands.Cog):
                                                                    WHERE voice_owner_id = :owner_id""",
                           {"owner_id": member.id})
                 voice_user_data = c.fetchone()
-                conn.commit()
                 if voice_user_data is not None:  # if he had a channel before
                     voice_channel = await after.channel.guild.create_voice_channel(name=voice_user_data[1],
                                                                                    category=self.client.get_channel(
@@ -114,7 +111,7 @@ class Voice(commands.Cog):
                     c.execute("""INSERT INTO voice_data (voice_owner_id, voice_channel_id,guild_id)
                                                                                     VALUES(?,?,?)""",
                               (member.id, voice_channel.id, member.guild.id))
-                    conn.commit()
+                    Globals.conn.commit()
                 else:
                     voice_channel = await after.channel.guild.create_voice_channel(name=f"{member.name}'s channel",
                                                                                    category=self.client.get_channel(
@@ -123,7 +120,7 @@ class Voice(commands.Cog):
                     c.execute("""INSERT INTO voice_user_data(voice_owner_id,voice_name,voice_limit)
                                                 VALUES(?,?,?)""",
                               (member.id, f"{member.name}'s channel", 0))
-                    conn.commit()
+                    Globals.conn.commit()
                     c.execute("""INSERT INTO voice_data (voice_owner_id, voice_channel_id,guild_id)
                                                                 VALUES(?,?,?)""",
                               (member.id, voice_channel.id, member.guild.id))
@@ -139,7 +136,7 @@ class Voice(commands.Cog):
                 if voice_data is not None:
                     c.execute("""DELETE FROM voice_data WHERE voice_channel_id = :voice_channel_id""",
                               {"voice_channel_id": before.channel.id})
-                    conn.commit()
+                    Globals.conn.commit()
                     await before.channel.delete()
 
     @commands.group(name="voice")
@@ -153,12 +150,10 @@ class Voice(commands.Cog):
 
     @voice.command()
     async def help(self, ctx):
-        conn = sqlite3.connect("discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         c.execute("""select prefix,join_to_create_a_room_channel_id from server_preference
         where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
         data = c.fetchone()
-        conn.close()
         prefix = data[0]
         embed = discord.Embed(title="voice help", colour=0xFFFF00)
         embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
@@ -205,11 +200,9 @@ class Voice(commands.Cog):
             return None
         try:
             voice_channel = ctx.author.voice.channel
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
                         WHERE voice_channel_id = :voice_channel_id""", {"voice_channel_id": voice_channel.id})
-            conn.commit()
             voice_data = c.fetchone()
             if voice_data[0] == ctx.author.id:
                 await voice_channel.edit(name=change_name)
@@ -217,12 +210,11 @@ class Voice(commands.Cog):
                             SET voice_name = :voice_name
                             WHERE voice_owner_id = :voice_owner_id""",
                           {"voice_name": change_name, "voice_owner_id": ctx.author.id})
-                conn.commit()
+                Globals.conn.commit()
 
                 await ctx.send(f"{ctx.author.mention} you have successfully changed the channel name to {change_name}")
             else:
                 await ctx.send(f"{ctx.author.mention} you are not the owner of the voice channel")
-            conn.close()
         except ValueError:
             await ctx.send(f"{ctx.author.mention} you have to be in the voice channel")
 
@@ -231,13 +223,10 @@ class Voice(commands.Cog):
         author = ctx.author
         try:
             currant_voice_channel = ctx.author.voice.channel
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute(""" SELECT * FROM voice_data
                         WHERE voice_channel_id = :voice_channel_id """, {"voice_channel_id": currant_voice_channel.id})
             voice_data = c.fetchone()
-            conn.commit()
-            conn.close()
             if voice_data[0] == author.id:
                 await currant_voice_channel.set_permissions(ctx.guild.roles[0], connect=False)
                 await ctx.send(f"{ctx.author.mention} the channel has been locked down")
@@ -251,13 +240,10 @@ class Voice(commands.Cog):
         try:
             author = ctx.author
             currant_voice_channel = author.voice.channel
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
                         WHERE voice_channel_id = :voice_channel_id""", {"voice_channel_id": currant_voice_channel.id})
             voice_data = c.fetchone()
-            conn.commit()
-            conn.close()
             if voice_data[0] == author.id:
                 await currant_voice_channel.set_permissions(ctx.guild.roles[0], connect=True)
                 await ctx.send(f"{author.mention} the channel has been unlocked")
@@ -272,8 +258,7 @@ class Voice(commands.Cog):
         try:
             if int(limit) >= 0:
                 currant_voice_channel = author.voice.channel
-                conn = sqlite3.connect("discord_bot.db")
-                c = conn.cursor()
+                c = Globals.conn.cursor()
                 c.execute("""SELECT * FROM voice_data
                                         WHERE voice_channel_id = :voice_channel_id""",
                           {"voice_channel_id": currant_voice_channel.id})
@@ -284,11 +269,10 @@ class Voice(commands.Cog):
                     SET voice_limit = :voice_limit
                     WHERE voice_owner_id = :voice_owner_id
                     """, {"voice_limit": limit, "voice_owner_id": author.id})
-                    conn.commit()
+                    Globals.conn.commit()
                     await ctx.send(f"{author.mention} you have successfully changed the voice channel limit to {limit}")
                 else:
                     await ctx.send(f"{author.mention} you are not the channel owner")
-                conn.close()
             else:
                 await ctx.send(f"{author.mention} you cant place a negative number as a voice limit")
         except AttributeError:
@@ -300,8 +284,7 @@ class Voice(commands.Cog):
     async def claim(self, ctx: commands.Context):
         try:
             voice_channel = ctx.author.voice.channel
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
             WHERE voice_channel_id = :channel_id""", {"channel_id": voice_channel.id})
             data = c.fetchone()
@@ -323,22 +306,20 @@ class Voice(commands.Cog):
                         WHERE voice_owner_id = :voice_owner_id""",
                                   {"name": voice_channel.name, "limit": voice_channel.user_limit,
                                    "voice_owner_id": ctx.author.id})
-                    conn.commit()
+                    Globals.conn.commit()
                     await voice_channel.set_permissions(ctx.author, connect=True)
                     await voice_channel.set_permissions(ctx.guild.get_member(data[0]), connect=True)
                     await ctx.send(f"{ctx.author.mention} you now own the chanel")
                 else:
                     await ctx.send(f"{ctx.author.mention} the owner of the channel is in the channel")
-            conn.commit()
-            conn.close()
+            Globals.conn.commit()
         except ValueError:
             await ctx.send(f"{ctx.author.mention} you are not in a channel")
 
     @voice.command()
     async def reject(self, ctx: commands.Context, member: discord.Member):
         try:
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
             WHERE voice_channel_id = :channel_id""", {"channel_id": ctx.author.voice.channel.id})
             data = c.fetchone()
@@ -358,8 +339,7 @@ class Voice(commands.Cog):
     @voice.command()
     async def permit(self, ctx: commands.Context, member: discord.Member):
         try:
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
             WHERE voice_channel_id = :channel_id""", {"channel_id": ctx.author.voice.channel.id})
             data = c.fetchone()
@@ -379,12 +359,10 @@ class Voice(commands.Cog):
         author = ctx.author
         try:
             currant_voice_channel = ctx.author.voice.channel
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute(""" SELECT * FROM voice_data
                         WHERE voice_channel_id = :voice_channel_id """, {"voice_channel_id": currant_voice_channel.id})
             voice_data = c.fetchone()
-            conn.close()
             if voice_data != ():
                 if voice_data[0] == author.id:
                     await currant_voice_channel.set_permissions(ctx.guild.roles[0], read_messages=False)
@@ -402,12 +380,10 @@ class Voice(commands.Cog):
         author = ctx.author
         try:
             currant_voice_channel = ctx.author.voice.channel
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute(""" SELECT * FROM voice_data
                         WHERE voice_channel_id = :voice_channel_id """, {"voice_channel_id": currant_voice_channel.id})
             voice_data = c.fetchone()
-            conn.close()
             if voice_data != ():
                 if voice_data[0] == author.id:
                     await currant_voice_channel.set_permissions(ctx.guild.roles[0], read_messages=None)
@@ -421,8 +397,7 @@ class Voice(commands.Cog):
 
     @voice.command()
     async def info(self, ctx, channel_id):
-        conn = sqlite3.connect("discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         c.execute(""" SELECT * FROM voice_data
                                 WHERE voice_channel_id = :voice_channel_id """,
                   {"voice_channel_id": channel_id})
@@ -430,7 +405,6 @@ class Voice(commands.Cog):
         c.execute("""select * from voice_user_data
         where voice_owner_id :member_id""", {"member_id": data[0]})
         data = c.fetchone()
-        conn.close()
         if data is not None:
             owner = await self.client.fetch_user(data[0])
             embed = discord.Embed(title=f"{owner} personal channel", colour=0x0000ff)
@@ -443,12 +417,10 @@ class Voice(commands.Cog):
 
     @info.error
     async def info_error(self, ctx, error):
-        conn = sqlite3.connect("discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         c.execute("""select * from voice_user_data
         where voice_owner_id = :member_id""", {"member_id": ctx.author.id})
         data = c.fetchone()
-        conn.close()
         if data is not None:
             owner = ctx.author
             embed = discord.Embed(title=f"{owner} personal channel", colour=0x0000ff)
@@ -462,8 +434,7 @@ class Voice(commands.Cog):
     @voice.command()
     async def reject_role(self, ctx, og_role: str):
         try:
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
             WHERE voice_channel_id = :channel_id""", {"channel_id": ctx.author.voice.channel.id})
             data = c.fetchone()
@@ -484,8 +455,7 @@ class Voice(commands.Cog):
     @voice.command()
     async def permit_role(self, ctx, og_role: str):
         try:
-            conn = sqlite3.connect("discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
             WHERE voice_channel_id = :channel_id""", {"channel_id": ctx.author.voice.channel.id})
             data = c.fetchone()
@@ -493,11 +463,19 @@ class Voice(commands.Cog):
             if data is not None and data[0] == ctx.author.id:
                 if og_role.isalnum():
                     role = get_role_by_id(ctx.guild, int(og_role))
-                    await ctx.author.voice.channel.set_permissions(role, connect=True)
+                    if role is not None:
+                        await ctx.author.voice.channel.set_permissions(role, connect=True)
+                        await ctx.send("you have successfully permitted " + og_role + " role")
+                    else:
+                        await ctx.send(f"{role} is not a role")
                 else:
                     role = get_role_by_name(ctx, og_role)
-                    await ctx.author.voice.channel.set_permissions(role, connect=True)
-                await ctx.send("you have successfully permitted " + og_role + " role")
+                    if role is not None:
+                        await ctx.author.voice.channel.set_permissions(role, connect=True)
+                        await ctx.send("you have successfully permitted " + og_role + " role")
+
+                    else:
+                        await ctx.send(f"{role} is not a role")
             else:
                 await ctx.send(f"{ctx.author.mention} you are not the owner of the voice")
         except ValueError:

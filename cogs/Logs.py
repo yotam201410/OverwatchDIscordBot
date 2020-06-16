@@ -4,6 +4,8 @@ import sqlite3
 import discord
 from discord.ext import commands
 
+from Globals import Globals
+
 
 def get_changed_roles(before: discord.Member, after: discord.Member):
     dic = {}
@@ -18,24 +20,18 @@ def get_changed_roles(before: discord.Member, after: discord.Member):
 
 
 def get_audit_log_channel_id(guild_id: int):
-    conn = sqlite3.connect("discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""select audit_log_channel_id from server_preference
     where guild_id  = :guild_id""", {"guild_id": guild_id})
     data = c.fetchone()
-    conn.commit()
-    conn.close()
     return data[0]
 
 
 def get_command_log_channel_id(guild_id: int):
-    conn = sqlite3.connect("discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""select * from server_preference
     where guild_id :guild_id""", {"guild_id": guild_id})
     data = c.fetchone()
-    conn.commit()
-    conn.close()
     return data[10]
 
 
@@ -152,7 +148,7 @@ class Logs(commands.Cog):
             embed = discord.Embed(name=f"{member} has just joined the server", timestamp=datetime.datetime.utcnow())
             embed.set_author(name=f"{member}", icon_url=member.avatar_url)
             embed.add_field(name="mention", value=f"{member.mention}")
-            embed.add_field(name="ID", value=f"```py \n Member = {member.id}")
+            embed.add_field(name="ID", value=f" ```python \n Member = {member.id} \n```")
             await self.client.get_channel(get_audit_log_channel_id(member.guild.id)).send(embed=embed)
 
     @commands.Cog.listener()
@@ -161,7 +157,7 @@ class Logs(commands.Cog):
             embed = discord.Embed(name=f"{member} has just left the server", timestamp=datetime.datetime.utcnow())
             embed.set_author(name=f"{member}", icon_url=member.avatar_url)
             embed.add_field(name="mention", value=f"{member.mention}")
-            embed.add_field(name="ID", value=f"```py \n Member = {member.id}")
+            embed.add_field(name="ID", value=f"```python \n Member = {member.id} \n```")
             await self.client.get_channel(get_audit_log_channel_id(member.guild.id)).send(embed=embed)
 
     @commands.Cog.listener()

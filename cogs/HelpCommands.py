@@ -1,7 +1,7 @@
 import sqlite3
 import discord
 from discord.ext import commands
-
+from Globals import Globals
 
 class HelpCommands(commands.Cog):
     def __init__(self, client):
@@ -12,13 +12,10 @@ class HelpCommands(commands.Cog):
         await ctx.message.delete()
         channel1 = ctx.author.voice.channel
         invite = await channel1.create_invite(max_age=60)
-        conn = sqlite3.connect(
-            "discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         c.execute("""SELECT * FROM server_preference
                        WHERE guild_id = :guild_id""",
                   {"guild_id": ctx.guild.id})
-        conn.commit()
         data = c.fetchone()
         role = data[4]
         if args is not []:
@@ -37,15 +34,11 @@ class HelpCommands(commands.Cog):
     @help.error
     async def help_error(self, ctx, error):  # error has to be in there
         if commands.MissingRequiredArgument != AttributeError:
-            conn = sqlite3.connect(
-                "discord_bot.db")
-            c = conn.cursor()
+            c = Globals.conn.cursor()
             c.execute("""SELECT * FROM server_preference
                            WHERE guild_id = :guild_id""",
                       {"guild_id": ctx.guild.id})
-            conn.commit()
             data = c.fetchone()
-            conn.close()
             role = data[4]
             if role is not None:
                 role = f'<@&{role}>'
