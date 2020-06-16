@@ -3,6 +3,7 @@ import os
 import discord
 from discord.ext import commands
 
+import sql_table_building
 from Globals import Globals
 
 times = 0
@@ -62,12 +63,22 @@ async def on_command_error(ctx, error):
 async def on_ready():
     print("bot is ready v 1.0")
     c = Globals.conn.cursor()
-    for guild in client.guilds:
-        c.execute("""INSERT INTO server_preference(guild_id,prefix)
-SELECT :guild_id, :prefix
-WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
-                  {"guild_id": guild.id, "prefix": "!"})
-    Globals.conn.commit()
+    try:
+        for guild in client.guilds:
+            c.execute("""INSERT INTO server_preference(guild_id,prefix)
+    SELECT :guild_id, :prefix
+    WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
+                      {"guild_id": guild.id, "prefix": "!"})
+    except:
+        Globals.conn.commit()
+        sql_table_building.idk()
+        c = Globals.conn.cursor()
+        for guild in client.guilds:
+            c.execute("""INSERT INTO server_preference(guild_id,prefix)
+        SELECT :guild_id, :prefix
+        WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
+                      {"guild_id": guild.id, "prefix": "!"})
+        Globals.conn.commit()
     global times
     if times == 0:
         for filename in os.listdir("cogs"):
