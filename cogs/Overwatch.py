@@ -301,12 +301,10 @@ class Overwatch(commands.Cog):
 
     @overwatch.command()
     async def help(self, ctx):
-        conn = sqlite3.connect("discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         c.execute("""select prefix from server_preference
             where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
         data = c.fetchone()
-        conn.close()
         prefix = data[0]
         embed = discord.Embed(title=f"overwatch help", colour=0xFFFFFF)
         embed.set_thumbnail(

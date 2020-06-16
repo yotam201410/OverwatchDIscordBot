@@ -1,9 +1,8 @@
-import sqlite3
+from Globals import Globals
+
+
 def idk():
-    conn = sqlite3.connect("discord_bot.db")
-    c = conn.cursor()
-    print(c.fetchall())
-    conn.commit()
+    c = Globals.conn.cursor()
     c.execute("""CREATE TABLE server_preference(
     guild_id integer PRIMARY KEY UNIQUE,
     prefix CHAR(5),
@@ -18,22 +17,17 @@ def idk():
     commands_log_channel_id integer,
     pug_match_user_limit integer
     )""")
-    print(c.fetchall())
-    conn.commit()
     c.execute("""CREATE TABLE voice_user_data(
     voice_owner_id integer PRIMARY KEY UNIQUE,
     voice_name text(100),
     voice_limit integer)""")
-    conn.commit()
     c.execute("""CREATE TABLE voice_data(
     voice_owner_id integer,
     voice_channel_id integer PRIMARY KEY UNIQUE,
     guild_id integer)""")
-    conn.commit()
     c.execute("""CREATE TABLE member_count(
     guild_id integer PRIMARY KEY UNIQUE,
     member_count_channel_id integer)""")
-    #
     c.execute("""CREATE TABLE offences(
     member_id integer,
     member_name tinytext,
@@ -78,5 +72,4 @@ def idk():
     battle_tag mediumtext,
     ip_address mediumtext)
     """)
-    conn.commit()
-    conn.close()
+    Globals.conn.commit()

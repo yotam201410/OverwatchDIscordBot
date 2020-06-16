@@ -1,21 +1,20 @@
 import os
-import sqlite3
+
 import discord
 from discord.ext import commands
+
 import sql_table_building
+from Globals import Globals
+
 times = 0
 
 
 def get_prefix(client, message):
-    conn = sqlite3.connect(
-        "discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""SELECT * FROM server_preference
                WHERE guild_id = :guild_id
 """, {"guild_id": message.guild.id})
     data = c.fetchone()
-    conn.commit()
-    conn.close()
     return data[1]
 
 
@@ -25,34 +24,27 @@ client.remove_command('help')
 
 @client.event
 async def on_guild_join(guild):
-    conn = sqlite3.connect(
-        "discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""INSERT INTO server_preference(guild_id,prefix)
     SELECT :guild_id, :prefix
     WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
               {"guild_id": guild.id, "prefix": "!"})
-    conn.commit()
-    conn.close()
+    Globals.conn.commit()
 
 
 @client.event
 async def on_guild_remove(guild):
-    conn = sqlite3.connect(
-        "discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""DELETE FROM server_preference WHERE guild_id=:guild_id""",
               {"guild_id": guild.id})
     c.execute("""DELETE FROM member_count WHERE guild_id=:guild_id""",
               {"guild_id": guild.id})
-    conn.commit()
-    conn.close()
+    Globals.conn.commit()
 
 
 @client.event
 async def on_command_error(ctx, error):
-    conn = sqlite3.connect("discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""select prefix from server_preference
     where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
     prefix = c.fetchone()[0]
@@ -70,9 +62,7 @@ async def on_command_error(ctx, error):
 @client.event
 async def on_ready():
     print("bot is ready v 1.0")
-    conn = sqlite3.connect(
-        "discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     try:
         for guild in client.guilds:
             c.execute("""INSERT INTO server_preference(guild_id,prefix)
@@ -80,24 +70,21 @@ async def on_ready():
     WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
                       {"guild_id": guild.id, "prefix": "!"})
     except:
-        conn.commit()
-        conn.close()
+        Globals.conn.commit()
         sql_table_building.idk()
-        conn = sqlite3.connect(
-            "discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         for guild in client.guilds:
             c.execute("""INSERT INTO server_preference(guild_id,prefix)
         SELECT :guild_id, :prefix
         WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
                       {"guild_id": guild.id, "prefix": "!"})
-        conn.commit()
-        conn.close()
+        Globals.conn.commit()
     global times
     if times == 0:
         for filename in os.listdir("cogs"):
             if filename.endswith(".py") and filename != "__init__.py":
                 client.load_extension(f"cogs.{filename[:-3]}")
         times += 1
+
 
 client.run(os.environ["discord_token"])
