@@ -2,7 +2,6 @@ import discord
 import gspread
 from discord.ext import commands
 from oauth2client.service_account import ServiceAccountCredentials
-import sqlite3
 from Globals import Globals
 from OverwatchUserDirectory import User
 from OverwatchUserDirectory.ratings.Ratings import Ratings
@@ -96,6 +95,7 @@ async def giveRole(member: discord.Member, sr: int, ):
     server_roles = member.guild.roles
     role = get_role(get_rank(sr), server_roles)
     await member.add_roles(role)
+    return role
 
 
 class Overwatch(commands.Cog):
@@ -178,7 +178,8 @@ class Overwatch(commands.Cog):
             if role is None:
                 await ctx.send("you have not finished you placements")
             else:
-                await giveRole(ctx.author, role.level)
+                role = await giveRole(ctx.author, role.level)
+                await ctx.send(f"you got the {role}")
         else:
             await ctx.send("you have not logged in to the bot please you the login command")
 

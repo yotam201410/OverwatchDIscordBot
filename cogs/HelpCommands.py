@@ -1,7 +1,7 @@
-import sqlite3
-import discord
 from discord.ext import commands
+
 from Globals import Globals
+
 
 class HelpCommands(commands.Cog):
     def __init__(self, client):
