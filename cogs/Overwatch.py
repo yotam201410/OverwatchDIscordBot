@@ -1,7 +1,6 @@
 import discord
-import gspread
 from discord.ext import commands
-from oauth2client.service_account import ServiceAccountCredentials
+
 from Globals import Globals
 from OverwatchUserDirectory import User
 from OverwatchUserDirectory.ratings.Ratings import Ratings
@@ -32,11 +31,7 @@ def get_rank_img(rank: str):
 
 
 def getBattleTagWithMember(member: discord.Member):
-    scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
-             "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("ow_users").sheet1
+    sheet = Globals.sheets.ow_users
     row = getRow(sheet, member.id)
     if row is not None:
         data = sheet.row_values(row)
