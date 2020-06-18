@@ -31,7 +31,7 @@ def get_rank_img(rank: str):
 
 
 def getBattleTagWithMember(member: discord.Member):
-    sheet = Globals.sheets.ow_users
+    sheet = Globals.sheets.worksheet("ow_users")
     row = getRow(sheet, member.id)
     if row is not None:
         data = sheet.row_values(row)
