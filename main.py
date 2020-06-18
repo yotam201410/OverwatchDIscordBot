@@ -1,11 +1,12 @@
+import datetime
 import os
-import sqlite3
+
 import discord
+from dateutil.parser import parse
 from discord.ext import commands
+
 import sql_table_building
 from Globals import Globals
-from dateutil.parser import parse
-import datetime
 
 times = 0
 
@@ -126,26 +127,26 @@ async def on_command_error(ctx, error):
 
 @client.event
 async def on_ready():
-    print("bot is ready v 1.0")
-    c = Globals.conn.cursor()
+    Globals.conn.commit()
     global times
     if times == 0:
+        c = Globals.conn.cursor()
+        try:
+            update_data()
+            for guild in client.guilds:
+                c.execute("""INSERT INTO server_preference(guild_id,prefix)
+            SELECT :guild_id, :prefix
+            WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
+                          {"guild_id": guild.id, "prefix": "!"})
+        except:
+            sql_table_building.idk()
+            update_data()
         for filename in os.listdir("cogs"):
             if filename.endswith(".py") and filename != "__init__.py":
                 client.load_extension(f"cogs.{filename[:-3]}")
-        try:
-            update_data()
-        except sqlite3.OperationalError:
-            sql_table_building.idk()
-            update_data()
         times += 1
+    print("bot is ready v 1.0")
 
-    for guild in client.guilds:
-        c.execute("""INSERT INTO server_preference(guild_id,prefix)
-SELECT :guild_id, :prefix
-WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
-                  {"guild_id": guild.id, "prefix": "!"})
-    Globals.conn.commit()
 
 
 client.run(os.environ["discord_token"])
