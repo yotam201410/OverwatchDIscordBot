@@ -25,7 +25,7 @@ def get_audit_log_channel_id(guild_id: int):
     data = c.fetchone()
     try:
         return data[0]
-    except TabError:
+    except TypeError:
         return None
 
 
