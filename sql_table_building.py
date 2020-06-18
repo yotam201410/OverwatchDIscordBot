@@ -39,7 +39,8 @@ def idk():
     treated varchar(5),
     moderator_id integer)""")
     c.execute("""create table pug_limit_5(
-    match_id integer,
+    match_id integer PRIMARY KEY UNIQUE,
+    guild_id integer,
     red_team_player_1 integer,
     red_team_player_2 integer,
     red_team_player_3 integer,
@@ -49,10 +50,13 @@ def idk():
     blue_team_player_2 integer,
     blue_team_player_3 integer,
     blue_team_player_4 integer,
-    blue_team_player_5 integer)
+    blue_team_player_5 integer,
+    result varchar(2)
+    )
     """)
     c.execute("""create table pug_limit_6(
-    match_id integer,
+    match_id integer PRIMARY KEY UNIQUE,
+    guild_id integer,
     red_team_player_1 integer,
     red_team_player_2 integer,
     red_team_player_3 integer,
@@ -64,12 +68,8 @@ def idk():
     blue_team_player_3 integer,
     blue_team_player_4 integer,
     blue_team_player_5 integer,
-    blue_team_player_6 integer
+    blue_team_player_6 integer,
+    result varchar(2)
     )
-    """)
-    c.execute("""create table ow_user(
-    user_id integer PRIMARY KEY UNIQUE,
-    battle_tag mediumtext,
-    ip_address mediumtext)
     """)
     Globals.conn.commit()
