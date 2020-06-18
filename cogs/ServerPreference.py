@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import sqlite3
 
 from Globals import Globals
 
@@ -33,13 +34,12 @@ class ServerPreference(commands.Cog):
     @commands.command()
     async def change_prefix(self, ctx, prefix):
         c = Globals.conn.cursor()
-
         c.execute("""
         UPDATE server_preference
         SET prefix = :prefix 
         WHERE guild_id = :guild""", {"prefix": prefix, "guild": ctx.guild.id})
         Globals.conn.commit()
-
+        await ctx.send(f"prefix has been changed to {prefix}")
 
     @setup.command()
     @commands.has_permissions(administrator=True)
