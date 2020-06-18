@@ -123,7 +123,7 @@ class Looping(commands.Cog):
                     l.append("None")
             server_p.append_row(l)
         c.execute("""select * from pug_limit_6""")
-        data = c.fatchall()
+        data = c.fetchall()
         sheets = Globals.sheets
         server_p = sheets.worksheet("pug_limit_6")
         for i in data:
