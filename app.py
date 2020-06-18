@@ -57,7 +57,7 @@ def login():
     discordUserID = request.args.get('state')
     battleNetToken = getBattleNetToken(battleNetCode, "eu")
     battleTag = getBattleTag(battleNetToken, "eu")
-    sheet = Globals.sheets.ow_users
+    sheet = Globals.sheets.worksheet("ow_users")
     if getRow(sheet, discordUserID) is None:
         sheet.insert_row([f"{discordUserID}", f"{battleTag}", f"{request.remote_addr}"])
     else:
