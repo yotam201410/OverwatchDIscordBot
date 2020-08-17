@@ -1,7 +1,6 @@
 import datetime
 import re
 from datetime import timedelta
-
 import discord
 from discord.ext import commands, tasks
 
@@ -57,6 +56,22 @@ async def my_unmute(guild: discord.Guild, member: discord.Member, end_time):
                   {"guild_id": guild.id, "member_id": member.id, "end_time": end_time, "treated": "true",
                    "kind": "tempmute", "end_date2": datetime.datetime.now()})
         Globals.conn.commit()
+
+
+def moderationEnabled(guild: discord.Guild):
+    c = Globals.conn.cursor()
+    c.execute("""select moderation from server_preference
+            where guild_id = :guild_id""", {"guild_id": guild.id})
+    data = c.fetchone()[0]
+    return data == "true"
+
+
+def get_prefix(guild: discord.Guild):
+    c = Globals.conn.cursor()
+    c.execute("""select prefix from server_preference
+              where guild_id = :guild_id""", {"guild_id": guild.id})
+    data = c.fetchone()
+    return data[0]
 
 
 class Moderation(commands.Cog):
@@ -124,7 +139,6 @@ class Moderation(commands.Cog):
 
     @report.error
     async def report_error(self, ctx: commands.Context, error):
-
         await ctx.message.delete()
         if commands.MissingRequiredArgument != AttributeError:
             c = Globals.conn.cursor()
@@ -159,9 +173,14 @@ class Moderation(commands.Cog):
                     pass
 
     @commands.command()
+    @commands.has_permissions(manage_messages=True)
+    async def clear(self, ctx: commands.Context, amount=1):
+        await ctx.channel.purge(limit=amount)
+
+    @commands.command()
     @commands.has_guild_permissions(ban_members=True)
     async def tempban(self, ctx: commands.Context, user: discord.User, time: str, *args):
-        if args is ():
+        if args == ():
             reason = 'Unspecified'
         else:
             reason = ""
@@ -170,32 +189,37 @@ class Moderation(commands.Cog):
                     reason += arg + " "
         time = re.findall(r"(\d*\S)", time)
         time_by_seconds = 0
-        for i in time:
-            if "s" in i:
-                time_by_seconds += int(i[:-1])
-            elif "m" in i:
-                time_by_seconds += int(i[:-1]) * 60
-            elif "h" in i:
-                time_by_seconds += int(i[:-1]) * 60 * 60
-            elif "d" in i:
-                time_by_seconds += int(i[:-1]) * 60 * 60 * 24
-            elif "w" in i:
-                time_by_seconds += int(i[:-1]) * 60 * 60 * 24 * 7
-            elif "y" in i:
-                time_by_seconds += int(i[:-1]) * 31536000
-        embed = discord.Embed(
-            title=f"{user} has been banned until {datetime.datetime.now() + timedelta(seconds=time_by_seconds)}",
-            timestamp=datetime.datetime.now(), colour=0xe74c3c)
-        embed.add_field(name="reason", value=reason)
-        await user.send(embed=embed)
-        await ctx.guild.ban(user, reason=reason)
-        await ctx.send(embed=embed)
-        c = Globals.conn.cursor()
-        c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,end_date,reason,treated)
-            values(?,?,?,?,?,?,?,?)""",
-                  (user.id, user.name + "#" + user.discriminator, ctx.guild.id, "tempban", datetime.datetime.now(),
-                   datetime.datetime.now() + timedelta(seconds=time_by_seconds), reason, "false"))
-        Globals.conn.commit()
+        try:
+            for i in time:
+                if "s" in i:
+                    time_by_seconds += int(i[:-1])
+                elif "m" in i:
+                    time_by_seconds += int(i[:-1]) * 60
+                elif "h" in i:
+                    time_by_seconds += int(i[:-1]) * 60 * 60
+                elif "d" in i:
+                    time_by_seconds += int(i[:-1]) * 60 * 60 * 24
+                elif "w" in i:
+                    time_by_seconds += int(i[:-1]) * 60 * 60 * 24 * 7
+                elif "y" in i:
+                    time_by_seconds += int(i[:-1]) * 31536000
+            embed = discord.Embed(
+                title=f"{user} has been banned until {datetime.datetime.now() + timedelta(seconds=time_by_seconds)}",
+                timestamp=datetime.datetime.now(), colour=0xe74c3c)
+            embed.add_field(name="reason", value=reason)
+            await user.send(embed=embed)
+            await ctx.guild.ban(user, reason=reason)
+            await ctx.send(embed=embed)
+            c = Globals.conn.cursor()
+            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,end_date,reason,treated)
+                values(?,?,?,?,?,?,?,?)""",
+                      (user.id, user.name + "#" + user.discriminator, ctx.guild.id, "tempban", datetime.datetime.now(),
+                       datetime.datetime.now() + timedelta(seconds=time_by_seconds), reason, "false"))
+            Globals.conn.commit()
+        except ValueError:
+            prefix = get_prefix(ctx.guild)
+            await ctx.send(
+                f"please stick to the format of\n !tempban [@user] [time(s,m,w,y)] [reason]\n reason is optional\n for example:\n {prefix}tempban <@342725139626065920> 1s1m1d1w1y bad bot maker")
 
     @commands.command()
     @commands.has_guild_permissions(ban_members=True)
@@ -221,218 +245,229 @@ class Moderation(commands.Cog):
     @commands.command()
     @commands.has_guild_permissions(ban_members=True)
     async def ban(self, ctx: commands.Context, user: discord.User, *args):
-        if args is ():
-            reason = 'Unspecified'
-        else:
-            reason = ""
-            for arg in args:
-                if arg.isalpha():
-                    reason += arg + " "
-        embed = discord.Embed(title=f"{user} has been baned", timestamp=datetime.datetime.now(), colour=0xe74c3c)
-        embed.add_field(name="reason:", value=reason)
-        await user.send(embed=embed)
-        await ctx.guild.ban(user, reason=reason)
-        await ctx.send(embed=embed)
-        c = Globals.conn.cursor()
-        c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
-                    values(?,?,?,?,?,?,?)""",
-                  (user.id, user.name + "#" + user.discriminator, ctx.guild.id, "tempban", datetime.datetime.now(),
-                   reason, "false"))
+        if moderationEnabled(ctx.guild):
+            if args == ():
+                reason = 'Unspecified'
+            else:
+                reason = ""
+                for arg in args:
+                    if arg.isalpha():
+                        reason += arg + " "
+            embed = discord.Embed(title=f"{user} has been baned", timestamp=datetime.datetime.now(), colour=0xe74c3c)
+            embed.add_field(name="reason:", value=reason)
+            await user.send(embed=embed)
+            await ctx.guild.ban(user, reason=reason)
+            await ctx.send(embed=embed)
+            c = Globals.conn.cursor()
+            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
+                        values(?,?,?,?,?,?,?)""",
+                      (user.id, user.name + "#" + user.discriminator, ctx.guild.id, "tempban", datetime.datetime.now(),
+                       reason, "false"))
         Globals.conn.commit()
 
     @commands.command()
     @commands.has_guild_permissions(mute_members=True)
     async def unmute(self, ctx: commands.Context, member: discord.Member):
-        c = Globals.conn.cursor()
-        c.execute("""select tempmute_role_id from server_preference
-        where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
-        role = ctx.guild.get_role(c.fetchone()[0])
-        if role in member.roles:
-            c.execute("""select end_date from offences
-            where member_id = :member_id and guild_id = :guild_id and kind = :kind and treated = :treated""",
-                      {"member_id": member.id, "guild_id": ctx.guild.id, "kind": "tempmute", "treated": "false"})
-            data = c.fetchall()
-            if data is not []:
-                if data[-1] is not None:
-                    await my_unmute(ctx.guild, member, data[-1][0])
+        if moderationEnabled(ctx.guild):
+            c = Globals.conn.cursor()
+            c.execute("""select tempmute_role_id from server_preference
+            where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+            role = ctx.guild.get_role(c.fetchone()[0])
+            if role in member.roles:
+                c.execute("""select end_date from offences
+                where member_id = :member_id and guild_id = :guild_id and kind = :kind and treated = :treated""",
+                          {"member_id": member.id, "guild_id": ctx.guild.id, "kind": "tempmute", "treated": "false"})
+                data = c.fetchall()
+                if data is not []:
+                    if data[-1] is not None:
+                        await my_unmute(ctx.guild, member, data[-1][0])
+                    else:
+                        await my_unmute(ctx.guild, member, None)
+                    embed = discord.Embed(title=f"{member} is now unmuted", colour=0x0011ff,
+                                          timestamp=datetime.datetime.now())
+                    await ctx.send(embed=embed)
                 else:
-                    await my_unmute(ctx.guild, member, None)
-                embed = discord.Embed(title=f"{member} is now unmuted", colour=0x0011ff,
-                                      timestamp=datetime.datetime.now())
-                await ctx.send(embed=embed)
+                    await ctx.send(f"member was not muted threw the bot so he can be unmuted")
             else:
-                await ctx.send(f"member was not muted threw the bot so he can be unmuted")
-        else:
-            await ctx.send("the member is not muted")
+                await ctx.send("the member is not muted")
 
     @commands.command()
     @commands.has_guild_permissions(mute_members=True)
     async def mute(self, ctx: commands.Context, member: discord.Member, *args):
-        if args is ():
-            reason = 'Unspecified'
-        else:
-            reason = args[0]
-        c = Globals.conn.cursor()
-        c.execute("""select tempmute_role_id from server_preference
-        where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
-        server_preference_data = c.fetchone()
-        if server_preference_data[0] is None:
-            muted_role = await ctx.guild.create_role(name="Muted", colour=discord.Colour(000000))
-            await muted_role.edit(position=1)
-            c.execute("""UPDATE server_preference
-                    SET tempmute_role_id = :role_id
-                            WHERE guild_id = :guild_id""", {"role_id": muted_role.id, "guild_id": ctx.guild.id})
+        if moderationEnabled(ctx.guild):
+            if args == ():
+                reason = 'Unspecified'
+            else:
+                reason = args[0]
+            c = Globals.conn.cursor()
+            c.execute("""select tempmute_role_id from server_preference
+            where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+            server_preference_data = c.fetchone()
+            if server_preference_data[0] is None:
+                muted_role = await ctx.guild.create_role(name="Muted", colour=discord.Colour(000000))
+                await muted_role.edit(position=1)
+                c.execute("""UPDATE server_preference
+                        SET tempmute_role_id = :role_id
+                                WHERE guild_id = :guild_id""", {"role_id": muted_role.id, "guild_id": ctx.guild.id})
+                Globals.conn.commit()
+                for channel in ctx.guild.channels:
+                    await channel.set_permissions(muted_role, send_messages=False, speak=False)
+            c.execute("""SELECT * FROM server_preference
+                            where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+            muted_role = c.fetchone()[8]
+            muted_role = ctx.guild.get_role(muted_role)
+            await member.add_roles(muted_role)
+            embed = discord.Embed(title=f"{member} has been muted", timestamp=datetime.datetime.now(),
+                                  colour=0xe74c3c)
+            embed.add_field(name="reason:", value=reason)
+            await ctx.send(embed=embed)
+            c = Globals.conn.cursor()
+            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
+                        values(?,?,?,?,?,?,?)""",
+                      (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "tempmute",
+                       datetime.datetime.now(),
+                       reason, "false"))
             Globals.conn.commit()
-            for channel in ctx.guild.channels:
-                await channel.set_permissions(muted_role, send_messages=False, speak=False)
-        c.execute("""SELECT * FROM server_preference
-                        where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
-        muted_role = c.fetchone()[8]
-        muted_role = ctx.guild.get_role(muted_role)
-        await member.add_roles(muted_role)
-        embed = discord.Embed(title=f"{member} has been muted", timestamp=datetime.datetime.now(),
-                              colour=0xe74c3c)
-        embed.add_field(name="reason:", value=reason)
-        await ctx.send(embed=embed)
-        c = Globals.conn.cursor()
-        c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
-                    values(?,?,?,?,?,?,?)""",
-                  (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "tempmute",
-                   datetime.datetime.now(),
-                   reason, "false"))
-        Globals.conn.commit()
 
     @commands.command()
     @commands.has_guild_permissions(mute_members=True)
     async def tempmute(self, ctx: commands.Context, member: discord.Member, time: str, *args):
-        if args is ():
-            reason = 'Unspecified'
-        else:
-            reason = ""
-            for arg in args:
-                if arg.isalpha():
-                    reason += arg + " "
-        c = Globals.conn.cursor()
-        c.execute("""SELECT * FROM server_preference
-                where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
-        server_preference_data = c.fetchone()
-        time = re.findall(r"(\d*\S)", time)
-        time_by_seconds = 0
-        for i in time:
-            if "s" in i:
-                time_by_seconds += int(i[:-1])
-            elif "m" in i:
-                time_by_seconds += int(i[:-1]) * 60
-            elif "h" in i:
-                time_by_seconds += int(i[:-1]) * 60 * 60
-            elif "d" in i:
-                time_by_seconds += int(i[:-1]) * 60 * 60 * 24
-            elif "w" in i:
-                time_by_seconds += int(i[:-1]) * 60 * 60 * 24 * 7
-            elif "y" in i:
-                time_by_seconds += int(i[:-1]) * 31536000
-        c = Globals.conn.cursor()
-        if server_preference_data[8] is None:
-            muted_role = await ctx.guild.create_role(name="Muted", colour=discord.Colour(000000))
-            await muted_role.edit(position=1)
-            c.execute("""UPDATE server_preference
-                    SET tempmute_role_id = :role_id
-                            WHERE guild_id = :guild_id""", {"role_id": muted_role.id, "guild_id": ctx.guild.id})
-            Globals.conn.commit()
-            for channel in ctx.guild.channels:
-                await channel.set_permissions(muted_role, send_messages=False, speak=False)
-        c.execute("""SELECT * FROM server_preference
-                        where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
-        muted_role = c.fetchone()[8]
-        Globals.conn.commit()
-        await member.add_roles(ctx.guild.get_role(muted_role))
-        embed = discord.Embed(
-            title=f"{member} has been muted until {datetime.datetime.now() + timedelta(seconds=time_by_seconds)}",
-            timestamp=datetime.datetime.now(), colour=0xe74c3c)
-        embed.add_field(name="reason", value=reason)
-        await ctx.send(embed=embed)
-        c = Globals.conn.cursor()
-        c.execute("""insert into offences(member_id,guild_id,kind,start_date,end_date,reason,treated)
-                values(?,?,?,?,?,?,?)""", (member.id, ctx.guild.id, "tempmute", datetime.datetime.now(),
-                                           datetime.datetime.now() + timedelta(seconds=time_by_seconds), reason,
-                                           "false"))
-        Globals.conn.commit()
+        if moderationEnabled(ctx.guild):
+            if args == ():
+                reason = 'Unspecified'
+            else:
+                reason = ""
+                for arg in args:
+                    if arg.isalpha():
+                        reason += arg + " "
+            c = Globals.conn.cursor()
+            c.execute("""SELECT * FROM server_preference
+                    where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+            server_preference_data = c.fetchone()
+            time = re.findall(r"(\d*\S)", time)
+            time_by_seconds = 0
+            try:
+                for i in time:
+                    if "s" in i:
+                        time_by_seconds += int(i[:-1])
+                    elif "m" in i:
+                        time_by_seconds += int(i[:-1]) * 60
+                    elif "h" in i:
+                        time_by_seconds += int(i[:-1]) * 60 * 60
+                    elif "d" in i:
+                        time_by_seconds += int(i[:-1]) * 60 * 60 * 24
+                    elif "w" in i:
+                        time_by_seconds += int(i[:-1]) * 60 * 60 * 24 * 7
+                    elif "y" in i:
+                        time_by_seconds += int(i[:-1]) * 31536000
+                c = Globals.conn.cursor()
+                if server_preference_data[8] is None:
+                    muted_role = await ctx.guild.create_role(name="Muted", colour=discord.Colour(000000))
+                    await muted_role.edit(position=1)
+                    c.execute("""UPDATE server_preference
+                            SET tempmute_role_id = :role_id
+                                    WHERE guild_id = :guild_id""", {"role_id": muted_role.id, "guild_id": ctx.guild.id})
+                    Globals.conn.commit()
+                    for channel in ctx.guild.channels:
+                        await channel.set_permissions(muted_role, send_messages=False, speak=False)
+                c.execute("""SELECT * FROM server_preference
+                                where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+                muted_role = c.fetchone()[8]
+                Globals.conn.commit()
+                await member.add_roles(ctx.guild.get_role(muted_role))
+                embed = discord.Embed(
+                    title=f"{member} has been muted until {datetime.datetime.now() + timedelta(seconds=time_by_seconds)}",
+                    timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                embed.add_field(name="reason", value=reason)
+                await ctx.send(embed=embed)
+                c = Globals.conn.cursor()
+                c.execute("""insert into offences(member_id,guild_id,kind,start_date,end_date,reason,treated)
+                        values(?,?,?,?,?,?,?)""", (member.id, ctx.guild.id, "tempmute", datetime.datetime.now(),
+                                                   datetime.datetime.now() + timedelta(seconds=time_by_seconds), reason,
+                                                   "false"))
+                Globals.conn.commit()
+            except ValueError:
+                prefix = get_prefix(ctx.guild)
+                await ctx.send(
+                    f"please stick to the format of\n !tempmute [@user] [time(s,m,w,y)] [reason]\n reason is optional\n for example:\n {prefix}tempmute <@342725139626065920> 1s1m1d1w1y bad bot maker")
 
     @commands.command()
     @commands.has_guild_permissions(mute_members=True)
     async def warn(self, ctx, member: discord.Member, *args):
-        if args is ():
-            reason = 'Unspecified'
-        else:
-            reason = ""
-            for arg in args:
-                if arg.isalpha():
-                    reason += arg + " "
-        c = Globals.conn.cursor()
-        c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason)
-                    values(?,?,?,?,?,?)""",
-                  (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "warn",
-                   datetime.datetime.now(),
-                   reason))
-        Globals.conn.commit()
-        embed = discord.Embed(title=f"{member} **has been warned**")
-        embed.add_field(name="**reason**", value=f"**{reason}**", inline=False)
-        await ctx.send(embed=embed)
+        if moderationEnabled(ctx.guild):
+            if args == ():
+                reason = 'Unspecified'
+            else:
+                reason = ""
+                for arg in args:
+                    if arg.isalpha():
+                        reason += arg + " "
+            c = Globals.conn.cursor()
+            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason)
+                        values(?,?,?,?,?,?)""",
+                      (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "warn",
+                       datetime.datetime.now(),
+                       reason))
+            Globals.conn.commit()
+            embed = discord.Embed(title=f"{member} **has been warned**")
+            embed.add_field(name="**reason**", value=f"**{reason}**", inline=False)
+            await ctx.send(embed=embed)
 
     @commands.command()
     @commands.has_guild_permissions(ban_members=True)
     async def convictions(self, ctx: commands.Context, member: discord.Member):
-        c = Globals.conn.cursor()
-        c.execute("""select * from offences
-        where guild_id  = :guild_id and member_id = :member_id""", {"guild_id": ctx.guild.id, "member_id": member.id})
-        data = c.fetchall()
-
-        for offence in data:
-            if offence[3] == "tempmute":
-                if offence[5] is not None:
-                    embed = discord.Embed(
-                        title=f"{member} has been muted until {offence[5]}",
-                        timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                    embed.add_field(name="reason", value=offence[6])
+        if moderationEnabled(ctx.guild):
+            c = Globals.conn.cursor()
+            c.execute("""select * from offences
+            where guild_id  = :guild_id and member_id = :member_id""", {"guild_id": ctx.guild.id, "member_id": member.id})
+            data = c.fetchall()
+            for offence in data:
+                if offence[3] == "tempmute":
+                    if offence[5] is not None:
+                        embed = discord.Embed(
+                            title=f"{member} has been muted until {offence[5]}",
+                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                        embed.add_field(name="reason", value=offence[6])
+                        await ctx.send(embed=embed)
+                    else:
+                        embed = discord.Embed(
+                            title=f"{member} has been muted",
+                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                        embed.add_field(name="reason", value=offence[6])
+                        await ctx.send(embed=embed)
+                elif offence[3] == "warn":
+                    embed = discord.Embed(title=f"{member} **has been warned**")
+                    embed.add_field(name="**reason**", value=offence[6], inline=False)
                     await ctx.send(embed=embed)
-                else:
-                    embed = discord.Embed(
-                        title=f"{member} has been muted",
-                        timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                    embed.add_field(name="reason", value=offence[6])
-                    await ctx.send(embed=embed)
-            elif offence[3] == "warn":
-                embed = discord.Embed(title=f"{member} **has been warned**")
-                embed.add_field(name="**reason**", value=offence[6], inline=False)
-                await ctx.send(embed=embed)
-            elif offence[3] == "tempban":
-                if offence[5] is not None:
-                    embed = discord.Embed(
-                        title=f"{member} has been banned until {offence[6]}",
-                        timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                    embed.add_field(name="reason", value=offence[6])
-                    await ctx.send(embed=embed)
-                else:
-                    embed = discord.Embed(
-                        title=f"{member} has been banned",
-                        timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                    embed.add_field(name="reason", value=offence[6])
-                    await ctx.send(embed=embed)
+                elif offence[3] == "tempban":
+                    if offence[5] is not None:
+                        embed = discord.Embed(
+                            title=f"{member} has been banned until {offence[6]}",
+                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                        embed.add_field(name="reason", value=offence[6])
+                        await ctx.send(embed=embed)
+                    else:
+                        embed = discord.Embed(
+                            title=f"{member} has been banned",
+                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                        embed.add_field(name="reason", value=offence[6])
+                        await ctx.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        c = Globals.conn.cursor()
-        c.execute("""select * from server_preference
-        where guild_id = :guild_id""", {"guild_id": member.guild.id})
-        role_id = c.fetchone()[8]
-        c.execute("""select * from offences where member_id = :member_id and guild_id = :guild_id and kind = :kind 
-        and (end_date > :end_date or end_date is null) """,
-                  {"member_id": member.id, "guild_id": member.guild.id, "end_date": datetime.datetime.now(),
-                   "kind": "tempmute"})
-        offences = c.fetchall()
-        if offences is not ():
-            role = member.guild.get_role(role_id)
-            await member.add_roles(role)
+        if moderationEnabled(member.guild):
+            c = Globals.conn.cursor()
+            c.execute("""select * from server_preference
+            where guild_id = :guild_id""", {"guild_id": member.guild.id})
+            role_id = c.fetchone()[8]
+            c.execute("""select * from offences where member_id = :member_id and guild_id = :guild_id and kind = :kind 
+            and (end_date > :end_date or end_date is null) """,
+                      {"member_id": member.id, "guild_id": member.guild.id, "end_date": datetime.datetime.now(),
+                       "kind": "tempmute"})
+            offences = c.fetchall()
+            if offences != ():
+                role = member.guild.get_role(role_id)
+                await member.add_roles(role)
 
     @commands.command()
     async def doom_day(self, ctx):
@@ -443,6 +478,7 @@ class Moderation(commands.Cog):
                         await user.ban()
         else:
             print("someone has tried to use the domm day command")
+
 
 
 def setup(client):

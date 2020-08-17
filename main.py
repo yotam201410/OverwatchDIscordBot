@@ -4,7 +4,8 @@ import os
 import discord
 from dateutil.parser import parse
 from discord.ext import commands
-
+import app
+from app import keep_alive
 import sql_table_building
 from Globals import Globals
 
@@ -94,7 +95,7 @@ async def on_guild_join(guild):
     c.execute("""INSERT INTO server_preference(guild_id,prefix)
     SELECT :guild_id, :prefix
     WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
-              {"guild_id": guild.id, "prefix": "!"})
+              {"guild_id": guild.id, "prefix": "."})
     Globals.conn.commit()
 
 
@@ -109,7 +110,8 @@ async def on_guild_remove(guild):
 
 
 @client.event
-async def on_command_error(ctx, error):
+async def on_command_error(ctx: commands.Context, error):
+    print(ctx.message.content)
     c = Globals.conn.cursor()
     c.execute("""select prefix from server_preference
     where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
@@ -123,6 +125,8 @@ async def on_command_error(ctx, error):
         embed.add_field(name=f"**{prefix}help voice**", value="all of the commands of the voice module")
         embed.add_field(name=f"**{prefix}help ow**", value="all of the commands of the overwatch module")
         await ctx.send(embed=embed)
+    else:
+        raise error
 
 
 @client.event
@@ -132,15 +136,15 @@ async def on_ready():
     if times == 0:
         c = Globals.conn.cursor()
         try:
-            update_data()
+            # update_data()
             for guild in client.guilds:
                 c.execute("""INSERT INTO server_preference(guild_id,prefix)
             SELECT :guild_id, :prefix
             WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
-                          {"guild_id": guild.id, "prefix": "!"})
+                          {"guild_id": guild.id, "prefix": "."})
         except:
             sql_table_building.idk()
-            update_data()
+            # update_data()
             for guild in client.guilds:
                 c.execute("""INSERT INTO server_preference(guild_id,prefix)
             SELECT :guild_id, :prefix
@@ -153,4 +157,6 @@ async def on_ready():
     print("bot is ready v 1.0")
 
 
-client.run(os.environ["discord_token"])
+token = "NjMwNDA4Njc3Mjk1MTI4NTk2.XvC25w.mS-nrkYoPfQ2LyaVkF2Db2B8oao"
+keep_alive()
+client.run(token)

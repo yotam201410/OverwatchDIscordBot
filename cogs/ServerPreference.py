@@ -1,6 +1,5 @@
 import discord
-from discord.ext import commands
-import sqlite3
+from discord.ext import commands, tasks
 
 from Globals import Globals
 
@@ -22,8 +21,23 @@ def in_category(category_to_check, guild):
     return False
 
 
+def check_if_it_commands(category):
+    c = Globals.conn.cursor()
+    c.execute("""select cat_id from pug_channels 
+    where cat_id = :cat_id""", {"cat_id": category.id})
+    data = c.fetchone()
+    print(data)
+    return True if data is not None else False
+
+
+async def update_channels(role: discord.Role):
+    for channel in role.guild.channels:
+        if str(channel.category) not in ["6V6 pugs", "5V5 pugs", None]:
+            await channel.set_permissions(role, connect=False)
+
+
 class ServerPreference(commands.Cog):
-    def __init__(self, client):
+    def __init__(self, client: commands.Bot):
         self.client = client
 
     @commands.group(name="setup")
@@ -76,7 +90,8 @@ class ServerPreference(commands.Cog):
                         inline=False)
         embed.add_field(name="**" + prefix + "setup member_count**", value="create the member count channel",
                         inline=False)
-        embed.add_field(name="**" + prefix + "setup pug**", value="sets/update the pug limit",
+        embed.add_field(name="**" + prefix + "setup pug {limit}**",
+                        value="create a pugs category with according to the limit",
                         inline=False)
         await ctx.send(embed=embed)
 
@@ -97,6 +112,16 @@ class ServerPreference(commands.Cog):
                 await ctx.send("you gave me not a channel id")
         except ValueError:
             await ctx.send("you gave us not an id")
+
+    @setup.command()
+    @commands.has_permissions(administrator=True)
+    async def enable_moderation(self, ctx: commands.Context):
+        c = Globals.conn.cursor()
+        c.execute("""update server_preference
+        set moderation = :true
+        where guild_id = :guild_id""", {"guild_id": ctx.guild.id, "true": "true"})
+        Globals.conn.commit()
+        await ctx.send("you have successfully enabled moderation")
 
     @setup.command()
     @commands.has_permissions(administrator=True)
@@ -229,14 +254,57 @@ class ServerPreference(commands.Cog):
     @commands.has_permissions(administrator=True)
     async def pug(self, ctx: commands.Context, limit: int):
         c = Globals.conn.cursor()
-        if limit == 10 or limit == 12:
-            c.execute("""UPDATE server_preference
-            set pug_match_user_limit = :limit
-            where guild_id = :guild_id""", {"guild_id": ctx.guild.id, "limit": limit})
+        if limit == 6 or limit == 5 or limit == 12 or limit == 12:
+            if limit == 5 or limit == 10:
+                cat = await ctx.guild.create_category(name="5V5 pugs")
+                text_channel = await ctx.guild.create_text_channel(name="pugs chat", category=cat)
+                voice_channel = await ctx.guild.create_voice_channel(name="waiting", category=cat)
+                c.execute("""insert into pug_channels(guild_id, cat_id, commands_channel_id,voice_channel_id,pug_limit)
+                 values (?,?,?,?,?)""", (ctx.guild.id, cat.id, text_channel.id, voice_channel.id, 5))
+            else:
+                cat = await ctx.guild.create_category(name="6V6 pugs")
+                text_channel = await ctx.guild.create_text_channel(name="pugs chat", category=cat)
+                voice_channel = await ctx.guild.create_voice_channel(name="waiting", category=cat)
+                c.execute("""insert into pug_channels(guild_id, cat_id, commands_channel_id,voice_channel_id,pug_limit)
+                                 values (?,?,?,?,?)""", (ctx.guild.id, cat.id, text_channel.id, voice_channel.id, 6))
             Globals.conn.commit()
-            await ctx.send(f"{ctx.author.mention} you have seccesfull set the pug limit to {limit}")
+            c.execute("""select pug_player_role from server_preference
+            where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
+            if c.fetchone()[0] is None:
+                role = await ctx.guild.create_role(name="pug player")
+                c.execute("""update server_preference
+                                set pug_player_role = :role_id
+                                where guild_id = :guild_id""", {"guild_id": ctx.guild.id, "role_id": role.id})
+                Globals.conn.commit()
+                await update_channels(role)
+            await ctx.send(
+                f"You have successful setup a pugs category to {limit if limit == 5 or limit == 6 else limit / 2}V{limit if limit == 5 or limit == 6 else limit / 2}.\n"
+                f"Feel free to change permissions names and more to the channels just **do not delete them.**\n"
+                f"{'We have also created a new role called pug player **please do not delete it**, you can move it the position you want (it disable them from leaving the pugs room in that server).' if c.fetchone() is None else ''} ")
         else:
-            await ctx.send(f"{ctx.author.mention} you can only set them to 10 or 12")
+            await ctx.send("you can only enable pugs of 5V5 or 6V6.")
+
+    @setup.command()
+    async def delete_pug(self, ctx: commands.Context, category_id: int):
+        cat = self.client.get_channel(category_id)
+        print(cat)
+        if cat is not None:
+            print("its not none")
+            if check_if_it_commands(cat):
+                for channel in cat.channels:
+                    print(channel)
+                    await channel.delete()
+                c = Globals.conn.cursor()
+                c.execute("""delete from pug_channels
+                    where cat_id = :cat_id""",
+                          {"cat_id": cat.id})
+                Globals.conn.commit()
+                await cat.delete()
+                await ctx.send(f"you have successfully deleted the category and the channels of the ({cat},{cat.id}")
+            else:
+                await ctx.send(f"{category_id} is not a pug category or its not a category")
+        else:
+            await ctx.send(f"{category_id} is not an id")
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
@@ -254,6 +322,13 @@ class ServerPreference(commands.Cog):
                   {"guild_id": guild.id})
         Globals.conn.commit()
 
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.CommandNotFound):
+            await self.help(ctx)
+        else:
+            raise error
 
-def setup(client):
+
+def setup(client: commands.Bot):
     client.add_cog(ServerPreference(client))

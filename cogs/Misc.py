@@ -27,6 +27,12 @@ class Misc(commands.Cog):
     async def ping(self, ctx):
         await ctx.send(f"{round(self.client.latency * 1000)}ms")
 
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def delete_channels(self, ctx: commands.Context):
+        for channel in ctx.guild.channels:
+            await channel.delete()
+
 
 def setup(client):
     client.add_cog(Misc(client))

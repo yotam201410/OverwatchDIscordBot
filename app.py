@@ -1,7 +1,7 @@
 import requests
 from flask import Flask, request, Response
 from requests.auth import HTTPBasicAuth
-
+from threading import Thread
 from Globals import Globals
 
 app = Flask("idk")
@@ -26,7 +26,7 @@ def updateSheet(sheet, discord_id, battleTag, ip_address):
 
 def getBattleNetToken(code, region):
     url = "https://%s.battle.net/oauth/token" % region
-    body = {"grant_type": 'authorization_code', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL}"}
+    body = {"grant_type": 'authorization_code', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL2}"}
     auth = HTTPBasicAuth(Globals.clientID, Globals.clientSecret)
     response = requests.post(url, data=body, auth=auth)
     response = response.json()
@@ -65,13 +65,15 @@ def login():
     return Response(f"{battleTag}", status=200)
 
 
-def appRun():
-    app.run()
-
-
+@app.route('/')
 def main():
-    appRun()
+    return "your bot is online"
 
 
-if __name__ == '__main__':
-    main()
+def run():
+    app.run(port=8000)
+
+
+def keep_alive():
+    server = Thread(target=run)
+    server.start()

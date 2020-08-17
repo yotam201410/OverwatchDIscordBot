@@ -479,7 +479,12 @@ class Voice(commands.Cog):
                 await ctx.send(f"{ctx.author.mention} you are not the owner of the voice")
         except ValueError:
             await ctx.send(f"{ctx.author.mention} you have to be in the voice_channel")
-
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.CommandNotFound):
+            await self.help(ctx)
+        else:
+            raise error
 
 def setup(client):
     client.add_cog(Voice(client))

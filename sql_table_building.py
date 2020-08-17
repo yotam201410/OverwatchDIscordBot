@@ -15,7 +15,8 @@ def idk():
     tempmute_role_id integer,
     audit_log_channel_id integer,
     commands_log_channel_id integer,
-    pug_match_user_limit integer
+    pug_player_role integer,
+    moderation varchar(5)
     )""")
     c.execute("""CREATE TABLE voice_user_data(
     voice_owner_id integer PRIMARY KEY UNIQUE,
@@ -41,6 +42,7 @@ def idk():
     c.execute("""create table pug_limit_5(
     match_id integer PRIMARY KEY UNIQUE,
     guild_id integer,
+    cat_id integer,
     red_team_player_1 integer,
     red_team_player_2 integer,
     red_team_player_3 integer,
@@ -57,6 +59,7 @@ def idk():
     c.execute("""create table pug_limit_6(
     match_id integer PRIMARY KEY UNIQUE,
     guild_id integer,
+    cat_id integer,
     red_team_player_1 integer,
     red_team_player_2 integer,
     red_team_player_3 integer,
@@ -72,4 +75,21 @@ def idk():
     result varchar(2)
     )
     """)
+    c.execute("""create table pug_queue(
+    guild_id integer,
+    member_id integer,
+    pug_limit integer,
+    cat_id integer
+    )""")
+    c.execute("""create table pug_channels(
+    guild_id integer,
+    cat_id integer,
+    commands_channel_id integer,
+    voice_channel_id integer,
+    pug_limit integer,
+    time_to_approve integer,
+    picks_by_roles varchar(5),
+    api varchar(5),
+    auto varchar(5)
+    )""")
     Globals.conn.commit()
