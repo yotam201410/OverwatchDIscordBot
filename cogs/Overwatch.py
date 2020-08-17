@@ -11,6 +11,7 @@ def getRow(sheet, discord_id):
     counter = 0
     data = sheet.get_all_values()
     for i in data:
+        print(i)
         counter += 1
         if i[0] == str(discord_id):
             return counter
@@ -105,7 +106,7 @@ class Overwatch(commands.Cog):
     async def login(self, ctx):
         baseURL = "http://eu.battle.net/oauth/authorize?response_type=code"
         clientID = "&client_id=" + Globals.clientID
-        redirectURI = "&redirect_uri=" + Globals.redirect_URL
+        redirectURI = "&redirect_uri=" + Globals.redirect_URL2
         state = "&state=" + str(ctx.author.id)
         try:
             await ctx.author.send(baseURL + clientID + redirectURI + state)
@@ -114,16 +115,21 @@ class Overwatch(commands.Cog):
 
     @overwatch.command(aliases=["rank", "ranking"])
     async def sr(self, ctx: commands.Context):
+        await ctx.send("this could take a minute")
         battleTag = getBattleTagWithMember(ctx.author)
+        print(battleTag)
         if battleTag is not None:
             user = User(battleTag)
+            print(user.__dict__)
             if user.ratings is not None:
+                comp = False
                 try:
                     embed = discord.Embed(title=f"{battleTag} tank Competitive sr")
                     embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
                     embed.set_thumbnail(url=user.ratings.tank.rankIcon)
                     embed.add_field(name="Tank", value=str(user.ratings.tank.level))
                     await ctx.send(embed=embed)
+                    comp = True
                 except AttributeError:
                     pass
                 try:
@@ -132,6 +138,7 @@ class Overwatch(commands.Cog):
                     embed.set_thumbnail(url=user.ratings.damage.rankIcon)
                     embed.add_field(name="Damage", value=str(user.ratings.damage.level))
                     await ctx.send(embed=embed)
+                    comp = True
                 except AttributeError:
                     pass
                 try:
@@ -141,15 +148,19 @@ class Overwatch(commands.Cog):
                     embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
                     embed.add_field(name="Support", value=str(user.ratings.support.level))
                     await ctx.send(embed=embed)
+                    comp = True
                 except AttributeError:
                     pass
-                avg = user.ratings.average_level
-                if avg is not None:
-                    embed = discord.Embed(title=f"{battleTag} average Competitive sr")
-                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
-                    embed.set_thumbnail(url=get_rank_img(get_rank(avg)))
-                    embed.add_field(name="Average", value=str(user.ratings.average_level))
-                    await ctx.send(embed=embed)
+                if not comp:
+                    await ctx.send("you have not placed in any role yet")
+                else:
+                    avg = user.ratings.average_level
+                    if avg is not None:
+                        embed = discord.Embed(title=f"{battleTag} average Competitive sr")
+                        embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
+                        embed.set_thumbnail(url=get_rank_img(get_rank(avg)))
+                        embed.add_field(name="Average", value=str(user.ratings.average_level))
+                        await ctx.send(embed=embed)
             else:
                 await ctx.send(
                     f"{ctx.author.mention} you have not been placed yet at competitive")
@@ -289,7 +300,7 @@ class Overwatch(commands.Cog):
             embed.set_thumbnail(url=user.icon)
             for obj in user.__dict__:
                 if not isinstance(user.__dict__[obj], Stats) and not isinstance(user.__dict__[obj], Ratings) and \
-                        user.__dict__[obj] is not "" and user.__dict__[obj] is not None:
+                        user.__dict__[obj] != "" and user.__dict__[obj] is not None:
                     embed.add_field(name=f"{make_spcace(obj)}", value=f"{str(user.__dict__[obj])}")
             await ctx.send(embed=embed)
         else:
@@ -332,6 +343,12 @@ class Overwatch(commands.Cog):
         await ctx.send(
             "you have to fallow this template\n {prefix}ow all_heroes {[competitive or quick_play]} {[assists, average, best, game, matchAwards, miscellaneous]}")
 
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.CommandNotFound):
+            await self.help(ctx)
+        else:
+            raise error
 
 def setup(client: commands.Bot):
     client.add_cog(Overwatch(client))
