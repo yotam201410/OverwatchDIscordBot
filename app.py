@@ -71,7 +71,7 @@ def main():
 
 
 def run():
-    app.run(port=8000)
+    app.run(port=80)
 
 
 def keep_alive():
