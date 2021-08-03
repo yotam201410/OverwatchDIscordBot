@@ -3,9 +3,10 @@ from Globals import Globals
 
 
 def add_headers(sheets):
-    server_p = ["guild_id", "prefix", "prefix", "mods_role_id", "helpers_role_id", "join_to_create_a_room_category_id",
+    server_p = ["guild_id", "prefix", "report_mod_channel_id", "mods_role_id", "helpers_role_id",
+                "join_to_create_a_room_category_id",
                 "join_to_create_a_room_channel_id", "member_count_category_id", "tempmute_role_id",
-                "audit_log_channel_id", "commands_log_channel_id", "pug_match_user_limit"]
+                "audit_log_channel_id", "commands_log_channel_id", "pug_player_role", "moderation"]
     sheet = sheets.worksheet("server_preference")
     sheets.worksheet("server_preference").clear()
     sheet.append_row(server_p)
@@ -22,19 +23,26 @@ def add_headers(sheets):
                 "moderator_id"]
     sheets.worksheet("offences").clear()
     sheets.worksheet("offences").append_row(offences)
-    pug_limit_5 = ["match_id", "guild_id", "red_team_player_1", "red_team_player_2", "red_team_player_3",
+    pug_limit_5 = ["match_id", "guild_id", "cat_id", "red_team_player_1", "red_team_player_2", "red_team_player_3",
                    "red_team_player_4",
                    "red_team_player_5", "blue_team_player_1", "blue_team_player_2", "blue_team_player_3",
                    "blue_team_player_4", "blue_team_player_5", "result"]
     sheets.worksheet("pug_limit_5").clear()
     sheets.worksheet("pug_limit_5").append_row(pug_limit_5)
-    pug_limit_6 = ["match_id", "guild_id", "red_team_player_1", "red_team_player_2", "red_team_player_3",
+    pug_limit_6 = ["match_id", "guild_id", "cat_id" "red_team_player_1", "red_team_player_2", "red_team_player_3",
                    "red_team_player_4",
                    "red_team_player_5", "red_team_player_6", "blue_team_player_1", "blue_team_player_2",
                    "blue_team_player_3",
                    "blue_team_player_4", "blue_team_player_5", "blue_team_player_6", "result"]
     sheets.worksheet("pug_limit_6").clear()
     sheets.worksheet("pug_limit_6").append_row(pug_limit_6)
+    # sheets.worksheet("pug_queue").clear()
+    # pug_queue = ["guild_id", "member_id", "pug_limit", "cat_id"]
+    # sheets.worksheet("pug_queue").append_row(pug_queue)
+    # sheets.worksheet("pug_channels").clear()
+    # pug_channels = ["guild_id", "cat_id", "commands_channel_id", "voice_channel_id", "pug_limit", "time_to_approve",
+    #                 "picks_by_roles", "api", "auto"]
+    # sheets.worksheet("pug_channels").append_row(pug_channels)
 
 
 class Looping(commands.Cog):
@@ -42,7 +50,7 @@ class Looping(commands.Cog):
         self.client = client
         self.updateSheet.start()
 
-    @tasks.loop(minutes=10)
+    @tasks.loop(seconds=120)
     async def updateSheet(self):
         c = Globals.conn.cursor()
         c.execute("""select * from server_preference""")
@@ -134,6 +142,30 @@ class Looping(commands.Cog):
                 else:
                     l.append("None")
             server_p.append_row(l)
+        c.execute("""select * from pug_queue""")
+        data = c.fetchall()
+        sheets = Globals.sheets
+        # server_p = sheets.worksheet("pug_queue")
+        # for i in data:
+        #     l = []
+        #     for d in i:
+        #         if d is not None:
+        #             l.append(str(d))
+        #         else:
+        #             l.append("None")
+        #     server_p.append_row(l)
+        # c.execute("""select * from pug_channels""")
+        # data = c.fetchall()
+        # sheets = Globals.sheets
+        # server_p = sheets.worksheet("pug_channels")
+        # for i in data:
+        #     l = []
+        #     for d in i:
+        #         if d is not None:
+        #             l.append(str(d))
+        #         else:
+        #             l.append("None")
+        #     server_p.append_row(l)
 
 
 def setup(client: commands.Bot):

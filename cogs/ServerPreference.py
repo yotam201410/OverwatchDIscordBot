@@ -125,6 +125,16 @@ class ServerPreference(commands.Cog):
 
     @setup.command()
     @commands.has_permissions(administrator=True)
+    async def disable_moderation(self, ctx: commands.Context):
+        c = Globals.conn.cursor()
+        c.execute("""update server_preference
+        set moderation = :true
+        where guild_id = :guild_id""", {"guild_id": ctx.guild.id, "true": "false"})
+        Globals.conn.commit()
+        await ctx.send("you have successfully disabled moderation")
+
+    @setup.command()
+    @commands.has_permissions(administrator=True)
     async def moderator_role(self, ctx, role_id):
         try:
             role_id = int(role_id)

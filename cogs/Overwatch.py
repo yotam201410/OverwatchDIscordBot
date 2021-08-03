@@ -185,7 +185,7 @@ class Overwatch(commands.Cog):
                 await ctx.send("you have not finished you placements")
             else:
                 role = await giveRole(ctx.author, role.level)
-                await ctx.send(f"you got the {role}")
+                await ctx.send(f"you got the {role} role")
         else:
             await ctx.send("you have not logged in to the bot please you the login command")
 
@@ -325,7 +325,7 @@ class Overwatch(commands.Cog):
                         value="gives you a rank role as your highest rank\n **does not give you a top 500**",
                         inline=False)
         embed.add_field(
-            name="**" + prefix + "ow herostats {[competitive or quick_play]} {hero} {[assists, average, best, game, matchAwards, miscellaneous]**",
+            name="**" + prefix + "ow herostats {[competitive or quick_play]} {hero} {[assists, average, best, game, matchAwards, miscellaneous, heroSpecific]**",
             value="sends all of your spastic stats in a hero at quick play or competitive", inline=False)
         embed.add_field(
             name="**" + prefix + "ow all_heroes {[competitive or quick_play]} {[assists, average, best, game, matchAwards, miscellaneous]}**",
@@ -349,6 +349,7 @@ class Overwatch(commands.Cog):
             await self.help(ctx)
         else:
             raise error
+
 
 def setup(client: commands.Bot):
     client.add_cog(Overwatch(client))

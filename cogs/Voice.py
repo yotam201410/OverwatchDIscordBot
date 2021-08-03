@@ -36,7 +36,7 @@ class Voice(commands.Cog):
         when a member joins a channel if its joint to create a room channel then it will move it to his channel base
         on last channel or not when a member leave a channel its checks if the channel is empty and if the origin of
         the channel was based of the command^ it will delete the channel
-        :param member:
+        :param member: the member of the voice channel
         :param before:
         :param after:
         """
@@ -174,11 +174,11 @@ class Voice(commands.Cog):
                         value="if you are in a room which the owner is not in you will be the owner of the room",
                         inline=False)
         embed.add_field(name=f"**{prefix}permit_role**" + "{role (as a name or id)}",
-                        value="permits the role members to join the channel",inline=False)
+                        value="permits the role members to join the channel", inline=False)
         embed.add_field(name=f"**{prefix}reject_role**" + "{role (as a name or id)}",
-                        value="reject the role members to join the channel",inline=False)
+                        value="reject the role members to join the channel", inline=False)
         embed.add_field(name=f"**{prefix}voice info**" + "{optional channel id}",
-                        value="gives you information about the voice channel",inline=False)
+                        value="gives you information about the voice channel", inline=False)
 
         if data[1] is not None:
             await ctx.send(f"you create a channel by joining {self.client.get_channel(data[1])}")
@@ -479,12 +479,14 @@ class Voice(commands.Cog):
                 await ctx.send(f"{ctx.author.mention} you are not the owner of the voice")
         except ValueError:
             await ctx.send(f"{ctx.author.mention} you have to be in the voice_channel")
+
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.CommandNotFound):
             await self.help(ctx)
         else:
             raise error
+
 
 def setup(client):
     client.add_cog(Voice(client))

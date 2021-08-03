@@ -1,7 +1,9 @@
+from threading import Thread
+
 import requests
 from flask import Flask, request, Response
 from requests.auth import HTTPBasicAuth
-from threading import Thread
+
 from Globals import Globals
 
 app = Flask("idk")
@@ -71,7 +73,8 @@ def main():
 
 
 def run():
-    app.run(port=8000)
+    context = ('cert.pem', 'key.pem')
+    app.run(port=80, ssl_context=context)
 
 
 def keep_alive():
