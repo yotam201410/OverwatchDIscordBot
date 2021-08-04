@@ -1,3 +1,4 @@
+import gspread
 from discord.ext import commands, tasks
 from Globals import Globals
 
@@ -52,120 +53,123 @@ class Looping(commands.Cog):
 
     @tasks.loop(seconds=120)
     async def updateSheet(self):
-        c = Globals.conn.cursor()
-        c.execute("""select * from server_preference""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        add_headers(sheets)
-        server_p = sheets.worksheet("server_preference")
-        for i in data:
-            l = []
-            for d in i:
-                if d is not None:
-                    l.append(str(d))
-                else:
-                    l.append("None")
-            server_p.append_row(l)
-        c.execute("""select * from voice_user_data""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        server_p = sheets.worksheet("voice_user_data")
-        for i in data:
-            l = []
-            for d in i:
-                if d is not None:
-                    l.append(str(d))
-                else:
-                    l.append("None")
-            server_p.append_row(l)
-        c.execute("""select * from voice_data""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        server_p = sheets.worksheet("voice_data")
+        try:
+            c = Globals.conn.cursor()
+            c.execute("""select * from server_preference""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            add_headers(sheets)
+            server_p = sheets.worksheet("server_preference")
+            for i in data:
+                l = []
+                for d in i:
+                    if d is not None:
+                        l.append(str(d))
+                    else:
+                        l.append("None")
+                server_p.append_row(l)
+            c.execute("""select * from voice_user_data""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            server_p = sheets.worksheet("voice_user_data")
+            for i in data:
+                l = []
+                for d in i:
+                    if d is not None:
+                        l.append(str(d))
+                    else:
+                        l.append("None")
+                server_p.append_row(l)
+            c.execute("""select * from voice_data""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            server_p = sheets.worksheet("voice_data")
 
-        for i in data:
-            l = []
-            for d in i:
-                if d is not None:
-                    l.append(str(d))
-                else:
-                    l.append("None")
-            server_p.append_row(l)
-        c.execute("""select * from member_count""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        server_p = sheets.worksheet("member_count")
+            for i in data:
+                l = []
+                for d in i:
+                    if d is not None:
+                        l.append(str(d))
+                    else:
+                        l.append("None")
+                server_p.append_row(l)
+            c.execute("""select * from member_count""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            server_p = sheets.worksheet("member_count")
 
-        for i in data:
-            l = []
-            for d in i:
-                if d is not None:
-                    l.append(str(d))
-                else:
-                    l.append("None")
-            server_p.append_row(l)
-        c.execute("""select * from offences""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        server_p = sheets.worksheet("offences")
+            for i in data:
+                l = []
+                for d in i:
+                    if d is not None:
+                        l.append(str(d))
+                    else:
+                        l.append("None")
+                server_p.append_row(l)
+            c.execute("""select * from offences""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            server_p = sheets.worksheet("offences")
 
-        for i in data:
-            l = []
-            for d in i:
-                if d is not None:
-                    l.append(str(d))
-                else:
-                    l.append("None")
-            server_p.append_row(l)
-        c.execute("""select * from pug_limit_5""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        server_p = sheets.worksheet("pug_limit_5")
+            for i in data:
+                l = []
+                for d in i:
+                    if d is not None:
+                        l.append(str(d))
+                    else:
+                        l.append("None")
+                server_p.append_row(l)
+            c.execute("""select * from pug_limit_5""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            server_p = sheets.worksheet("pug_limit_5")
 
-        for i in data:
-            l = []
-            for d in i:
-                if d is not None:
-                    l.append(str(d))
-                else:
-                    l.append("None")
-            server_p.append_row(l)
-        c.execute("""select * from pug_limit_6""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        server_p = sheets.worksheet("pug_limit_6")
-        for i in data:
-            l = []
-            for d in i:
-                if d is not None:
-                    l.append(str(d))
-                else:
-                    l.append("None")
-            server_p.append_row(l)
-        c.execute("""select * from pug_queue""")
-        data = c.fetchall()
-        sheets = Globals.sheets
-        # server_p = sheets.worksheet("pug_queue")
-        # for i in data:
-        #     l = []
-        #     for d in i:
-        #         if d is not None:
-        #             l.append(str(d))
-        #         else:
-        #             l.append("None")
-        #     server_p.append_row(l)
-        # c.execute("""select * from pug_channels""")
-        # data = c.fetchall()
-        # sheets = Globals.sheets
-        # server_p = sheets.worksheet("pug_channels")
-        # for i in data:
-        #     l = []
-        #     for d in i:
-        #         if d is not None:
-        #             l.append(str(d))
-        #         else:
-        #             l.append("None")
-        #     server_p.append_row(l)
+            for i in data:
+                l = []
+                for d in i:
+                    if d is not None:
+                        l.append(str(d))
+                    else:
+                        l.append("None")
+                server_p.append_row(l)
+            c.execute("""select * from pug_limit_6""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            server_p = sheets.worksheet("pug_limit_6")
+            for i in data:
+                l = []
+                for d in i:
+                    if d is not None:
+                        l.append(str(d))
+                    else:
+                        l.append("None")
+                server_p.append_row(l)
+            c.execute("""select * from pug_queue""")
+            data = c.fetchall()
+            sheets = Globals.sheets
+            # server_p = sheets.worksheet("pug_queue")
+            # for i in data:
+            #     l = []
+            #     for d in i:
+            #         if d is not None:
+            #             l.append(str(d))
+            #         else:
+            #             l.append("None")
+            #     server_p.append_row(l)
+            # c.execute("""select * from pug_channels""")
+            # data = c.fetchall()
+            # sheets = Globals.sheets
+            # server_p = sheets.worksheet("pug_channels")
+            # for i in data:
+            #     l = []
+            #     for d in i:
+            #         if d is not None:
+            #             l.append(str(d))
+            #         else:
+            #             l.append("None")
+            #     server_p.append_row(l)
+        except gspread.exceptions.APIError:
+            pass
 
 
 def setup(client: commands.Bot):

@@ -414,44 +414,47 @@ class Moderation(commands.Cog):
             await ctx.send(embed=embed)
 
     @commands.command()
-    @commands.has_guild_permissions(ban_members=True)
     async def convictions(self, ctx: commands.Context, member: discord.Member):
         if moderationEnabled(ctx.guild):
             c = Globals.conn.cursor()
             c.execute("""select * from offences
-            where guild_id  = :guild_id and member_id = :member_id""", {"guild_id": ctx.guild.id, "member_id": member.id})
+            where guild_id  = :guild_id and member_id = :member_id""",
+                      {"guild_id": ctx.guild.id, "member_id": member.id})
             data = c.fetchall()
-            for offence in data:
-                if offence[3] == "tempmute":
-                    if offence[5] is not None:
-                        embed = discord.Embed(
-                            title=f"{member} has been muted until {offence[5]}",
-                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                        embed.add_field(name="reason", value=offence[6])
+            if data:
+                for offence in data:
+                    if offence[3] == "tempmute":
+                        if offence[5] is not None:
+                            embed = discord.Embed(
+                                title=f"{member} has been muted until {offence[5]}",
+                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                            embed.add_field(name="reason", value=offence[6])
+                            await ctx.send(embed=embed)
+                        else:
+                            embed = discord.Embed(
+                                title=f"{member} has been muted",
+                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                            embed.add_field(name="reason", value=offence[6])
+                            await ctx.send(embed=embed)
+                    elif offence[3] == "warn":
+                        embed = discord.Embed(title=f"{member} **has been warned**")
+                        embed.add_field(name="**reason**", value=offence[6], inline=False)
                         await ctx.send(embed=embed)
-                    else:
-                        embed = discord.Embed(
-                            title=f"{member} has been muted",
-                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                        embed.add_field(name="reason", value=offence[6])
-                        await ctx.send(embed=embed)
-                elif offence[3] == "warn":
-                    embed = discord.Embed(title=f"{member} **has been warned**")
-                    embed.add_field(name="**reason**", value=offence[6], inline=False)
-                    await ctx.send(embed=embed)
-                elif offence[3] == "tempban":
-                    if offence[5] is not None:
-                        embed = discord.Embed(
-                            title=f"{member} has been banned until {offence[6]}",
-                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                        embed.add_field(name="reason", value=offence[6])
-                        await ctx.send(embed=embed)
-                    else:
-                        embed = discord.Embed(
-                            title=f"{member} has been banned",
-                            timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                        embed.add_field(name="reason", value=offence[6])
-                        await ctx.send(embed=embed)
+                    elif offence[3] == "tempban":
+                        if offence[5] is not None:
+                            embed = discord.Embed(
+                                title=f"{member} has been banned until {offence[6]}",
+                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                            embed.add_field(name="reason", value=offence[6])
+                            await ctx.send(embed=embed)
+                        else:
+                            embed = discord.Embed(
+                                title=f"{member} has been banned",
+                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                            embed.add_field(name="reason", value=offence[6])
+                            await ctx.send(embed=embed)
+            else:
+                await ctx.send(f"{member.mention} has no convictions")
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
@@ -479,6 +482,41 @@ class Moderation(commands.Cog):
         else:
             print("someone has tried to use the domm day command")
 
+    @commands.command(name="mod_help")
+    async def help(self, ctx: commands.Context):
+        if moderationEnabled(ctx.guild):
+            prefix = get_prefix(ctx.guild)
+            embed = discord.Embed(title="moderation help", colour=0x000000)
+            embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
+            embed.set_thumbnail(url=ctx.guild.icon_url)
+            embed.add_field(name="**" + prefix + "clear {clear amount}**",
+                            value="deletes {amount} of messages\n you must have the menage messages permission",
+                            inline=False)
+            embed.add_field(name="**" + prefix + "warn {mention of a member} {reason}**",
+                            value="warn the member, **you don't have to specify a reason** \n **you must have mute members permission**",
+                            inline=False)
+            embed.add_field(name="**" + prefix + "mute {mention of a member} {reason}**",
+                            value="give to the member a mute role so he cant type anything, **you don't have to specify a reason** \n **you must have mute members permission**",
+                            inline=False)
+            embed.add_field(name="**" + prefix + "tempmute {mention of a member} {time} {reason}**",
+                            value="give to the member a mute role so he cant type anything for the time mentioned (s - seconds, m - minutes, h - hours, d - days, w - weeks, y - years) , **you don't have to specify a reason** \n **you must have mute members permission**",
+                            inline=False)
+            embed.add_field(name="**" + prefix + "kick {mention of a member} {reason}**",
+                            value="kicks the member, **you don't have to specify a reason** \n **you must have kick members permission**",
+                            inline=False)
+            embed.add_field(name="**" + prefix + "ban {mention of a member} {reason}**",
+                            value="bans the member, **you don't have to specify a reason** \n **you must have ban members permission**",
+                            inline=False)
+            embed.add_field(name="**" + prefix + "tempban {mention of a member} {time} {reason}**",
+                            value="bans the member for the time mentioned (s - seconds, m - minutes, h - hours, d - days, w - weeks, y - years) , **you don't have to specify a reason** \n **you must have ban members permission**",
+                            inline=False)
+            embed.add_field(name="**" + prefix + "convictions {mention of a member}**",
+                            value="shows the member convictions",
+                            inline=False)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(
+                "moderation module is not enabled at this server please reach to the server admin to turn it up")
 
 
 def setup(client):

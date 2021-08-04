@@ -158,7 +158,7 @@ class Voice(commands.Cog):
         embed.set_author(name=ctx.guild.name, icon_url=ctx.guild.icon_url)
         embed.set_thumbnail(url="https://i.imgur.com/Kafyaua.png")
         embed.add_field(name=f"**{prefix}voice lock**",
-                        value="makes the room locked* so you are the only one who can enter the room\n **everyone will be able to see the channel but would not be abl enter**",
+                        value="makes the room locked so you are the only one who can enter the room\n **everyone will be able to see the channel but would not be abl enter**",
                         inline=False)
         embed.add_field(name=f"**{prefix}voice unlock**", value="makes the room open so everyone can enter",
                         inline=False)
@@ -179,10 +179,7 @@ class Voice(commands.Cog):
                         value="reject the role members to join the channel", inline=False)
         embed.add_field(name=f"**{prefix}voice info**" + "{optional channel id}",
                         value="gives you information about the voice channel", inline=False)
-
-        if data[1] is not None:
-            await ctx.send(f"you create a channel by joining {self.client.get_channel(data[1])}")
-        else:
+        if not data[1]:
             await ctx.send(f"contact the sever admin tp setup the voice muddle")
         await ctx.send(embed=embed)
 
@@ -482,7 +479,7 @@ class Voice(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error):
-        if isinstance(error, commands.CommandNotFound):
+        if isinstance(error, commands.CommandNotFound) or isinstance(error,commands.MissingRequiredArgument):
             await self.help(ctx)
         else:
             raise error
