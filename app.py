@@ -1,9 +1,7 @@
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from flask import Flask, request, Response
 from requests.auth import HTTPBasicAuth
-
+from threading import Thread
 from Globals import Globals
 
 app = Flask("idk")
@@ -28,7 +26,7 @@ def updateSheet(sheet, discord_id, battleTag, ip_address):
 
 def getBattleNetToken(code, region):
     url = "https://%s.battle.net/oauth/token" % region
-    body = {"grant_type": 'authorization_code', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL}"}
+    body = {"grant_type": 'authorization_code', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL2}"}
     auth = HTTPBasicAuth(Globals.clientID, Globals.clientSecret)
     response = requests.post(url, data=body, auth=auth)
     response = response.json()
@@ -59,11 +57,7 @@ def login():
     discordUserID = request.args.get('state')
     battleNetToken = getBattleNetToken(battleNetCode, "eu")
     battleTag = getBattleTag(battleNetToken, "eu")
-    scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
-             "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("ow_users").sheet1
+    sheet = Globals.sheets.worksheet("ow_users")
     if getRow(sheet, discordUserID) is None:
         sheet.insert_row([f"{discordUserID}", f"{battleTag}", f"{request.remote_addr}"])
     else:
@@ -71,13 +65,15 @@ def login():
     return Response(f"{battleTag}", status=200)
 
 
-def appRun():
-    app.run()
-
-
+@app.route('/')
 def main():
-    appRun()
+    return "your bot is online"
 
 
-if __name__ == '__main__':
-    main()
+def run():
+    app.run(port=80)
+
+
+def keep_alive():
+    server = Thread(target=run)
+    server.start()

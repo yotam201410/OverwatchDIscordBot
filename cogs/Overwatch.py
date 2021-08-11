@@ -1,8 +1,6 @@
 import discord
-import gspread
 from discord.ext import commands
-from oauth2client.service_account import ServiceAccountCredentials
-import sqlite3
+
 from Globals import Globals
 from OverwatchUserDirectory import User
 from OverwatchUserDirectory.ratings.Ratings import Ratings
@@ -13,18 +11,28 @@ def getRow(sheet, discord_id):
     counter = 0
     data = sheet.get_all_values()
     for i in data:
+        print(i)
         counter += 1
         if i[0] == str(discord_id):
             return counter
     return None
 
 
+def get_rank_img(rank: str):
+    dic = {
+        "Bronze": "https://gamepedia.cursecdn.com/overwatch_gamepedia/8/89/Badge_1_Bronze.png?version=fa38e0c94d93c352f40367c620ddd5af",
+        "Silver": "https://gamepedia.cursecdn.com/overwatch_gamepedia/b/bb/Badge_2_Silver.png?version=d5f167d121ece4c68da7559fac9b5897",
+        "Gold": "https://gamepedia.cursecdn.com/overwatch_gamepedia/b/b8/Badge_3_Gold.png?version=a74dc72feb1a0306497263c1e0850411",
+        "Platinum": "https://gamepedia.cursecdn.com/overwatch_gamepedia/f/f8/Badge_4_Platinum.png?version=ac66a0d7101dc3e4f5e31109ffb3c21e",
+        "Diamond": "https://gamepedia.cursecdn.com/overwatch_gamepedia/2/2f/Badge_5_Diamond.png?version=bf806f5eb546cb9a1b71a04fa4cf3faa",
+        "Master": "https://gamepedia.cursecdn.com/overwatch_gamepedia/f/f0/Badge_6_Master.png?version=b572955550eafbd5e8f2e32566f2ca17",
+        "GrandMaster": "https://gamepedia.cursecdn.com/overwatch_gamepedia/8/87/Badge_7_Grandmaster.png?version=c7d21f01f2ecffcdcbdb367c425618f2",
+        "Top 500": "https://gamepedia.cursecdn.com/overwatch_gamepedia/7/73/Badge_8_Top_500.png?version=61fe40ef7c98c2fe2e699f8708bc9248"}
+    return dic[rank]
+
+
 def getBattleTagWithMember(member: discord.Member):
-    scope = ["https://spreadsheets.google.com/feeds", 'https://www.googleapis.com/auth/spreadsheets',
-             "https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("ow_users").sheet1
+    sheet = Globals.sheets.worksheet("ow_users")
     row = getRow(sheet, member.id)
     if row is not None:
         data = sheet.row_values(row)
@@ -83,6 +91,7 @@ async def giveRole(member: discord.Member, sr: int, ):
     server_roles = member.guild.roles
     role = get_role(get_rank(sr), server_roles)
     await member.add_roles(role)
+    return role
 
 
 class Overwatch(commands.Cog):
@@ -97,7 +106,7 @@ class Overwatch(commands.Cog):
     async def login(self, ctx):
         baseURL = "http://eu.battle.net/oauth/authorize?response_type=code"
         clientID = "&client_id=" + Globals.clientID
-        redirectURI = "&redirect_uri=" + Globals.redirect_URL
+        redirectURI = "&redirect_uri=" + Globals.redirect_URL2
         state = "&state=" + str(ctx.author.id)
         try:
             await ctx.author.send(baseURL + clientID + redirectURI + state)
@@ -106,39 +115,52 @@ class Overwatch(commands.Cog):
 
     @overwatch.command(aliases=["rank", "ranking"])
     async def sr(self, ctx: commands.Context):
+        await ctx.send("this could take a minute")
         battleTag = getBattleTagWithMember(ctx.author)
+        print(battleTag)
         if battleTag is not None:
             user = User(battleTag)
+            print(user.__dict__)
             if user.ratings is not None:
+                comp = False
                 try:
                     embed = discord.Embed(title=f"{battleTag} tank Competitive sr")
+                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
                     embed.set_thumbnail(url=user.ratings.tank.rankIcon)
                     embed.add_field(name="Tank", value=str(user.ratings.tank.level))
                     await ctx.send(embed=embed)
+                    comp = True
                 except AttributeError:
                     pass
                 try:
                     embed = discord.Embed(title=f"{battleTag} damage Competitive sr")
+                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
                     embed.set_thumbnail(url=user.ratings.damage.rankIcon)
-                    embed.add_field(name="support", value=str(user.ratings.damage.level))
+                    embed.add_field(name="Damage", value=str(user.ratings.damage.level))
                     await ctx.send(embed=embed)
+                    comp = True
                 except AttributeError:
                     pass
                 try:
 
                     embed = discord.Embed(title=f"{battleTag} support Competitive sr")
                     embed.set_thumbnail(url=user.ratings.support.rankIcon)
-
-                    embed.add_field(name="support", value=str(user.ratings.support.level))
+                    embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
+                    embed.add_field(name="Support", value=str(user.ratings.support.level))
                     await ctx.send(embed=embed)
+                    comp = True
                 except AttributeError:
                     pass
-                avg = user.ratings.average_level
-                if avg is not None:
-                    embed = discord.Embed(title=f"{battleTag} average Competitive sr")
-                    # add set author and thumbnail
-                    embed.add_field(name="average", value=str(user.ratings.average_level))
-                    await ctx.send(embed=embed)
+                if not comp:
+                    await ctx.send("you have not placed in any role yet")
+                else:
+                    avg = user.ratings.average_level
+                    if avg is not None:
+                        embed = discord.Embed(title=f"{battleTag} average Competitive sr")
+                        embed.set_author(name=f"{ctx.author}", icon_url=ctx.author.avatar_url)
+                        embed.set_thumbnail(url=get_rank_img(get_rank(avg)))
+                        embed.add_field(name="Average", value=str(user.ratings.average_level))
+                        await ctx.send(embed=embed)
             else:
                 await ctx.send(
                     f"{ctx.author.mention} you have not been placed yet at competitive")
@@ -162,7 +184,8 @@ class Overwatch(commands.Cog):
             if role is None:
                 await ctx.send("you have not finished you placements")
             else:
-                await giveRole(ctx.author, role.level)
+                role = await giveRole(ctx.author, role.level)
+                await ctx.send(f"you got the {role}")
         else:
             await ctx.send("you have not logged in to the bot please you the login command")
 
@@ -277,7 +300,7 @@ class Overwatch(commands.Cog):
             embed.set_thumbnail(url=user.icon)
             for obj in user.__dict__:
                 if not isinstance(user.__dict__[obj], Stats) and not isinstance(user.__dict__[obj], Ratings) and \
-                        user.__dict__[obj] is not "" and user.__dict__[obj] is not None:
+                        user.__dict__[obj] != "" and user.__dict__[obj] is not None:
                     embed.add_field(name=f"{make_spcace(obj)}", value=f"{str(user.__dict__[obj])}")
             await ctx.send(embed=embed)
         else:
@@ -285,12 +308,10 @@ class Overwatch(commands.Cog):
 
     @overwatch.command()
     async def help(self, ctx):
-        conn = sqlite3.connect("discord_bot.db")
-        c = conn.cursor()
+        c = Globals.conn.cursor()
         c.execute("""select prefix from server_preference
             where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
         data = c.fetchone()
-        conn.close()
         prefix = data[0]
         embed = discord.Embed(title=f"overwatch help", colour=0xFFFFFF)
         embed.set_thumbnail(
@@ -322,6 +343,12 @@ class Overwatch(commands.Cog):
         await ctx.send(
             "you have to fallow this template\n {prefix}ow all_heroes {[competitive or quick_play]} {[assists, average, best, game, matchAwards, miscellaneous]}")
 
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.CommandNotFound):
+            await self.help(ctx)
+        else:
+            raise error
 
 def setup(client: commands.Bot):
     client.add_cog(Overwatch(client))

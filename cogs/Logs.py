@@ -1,8 +1,9 @@
 import datetime
-import sqlite3
 
 import discord
 from discord.ext import commands
+
+from Globals import Globals
 
 
 def get_changed_roles(before: discord.Member, after: discord.Member):
@@ -18,24 +19,21 @@ def get_changed_roles(before: discord.Member, after: discord.Member):
 
 
 def get_audit_log_channel_id(guild_id: int):
-    conn = sqlite3.connect("discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""select audit_log_channel_id from server_preference
     where guild_id  = :guild_id""", {"guild_id": guild_id})
     data = c.fetchone()
-    conn.commit()
-    conn.close()
-    return data[0]
+    try:
+        return data[0]
+    except TypeError:
+        return None
 
 
 def get_command_log_channel_id(guild_id: int):
-    conn = sqlite3.connect("discord_bot.db")
-    c = conn.cursor()
+    c = Globals.conn.cursor()
     c.execute("""select * from server_preference
     where guild_id :guild_id""", {"guild_id": guild_id})
     data = c.fetchone()
-    conn.commit()
-    conn.close()
     return data[10]
 
 
@@ -49,8 +47,9 @@ class Logs(commands.Cog):
         if channel is not None:
             if payload.cached_message is None:
                 date = datetime.datetime.utcnow()
-                embed = discord.Embed(title=f"message has been deleted in {self.client.get_channel(payload.channel_id)}",
-                                      timestamp=date)
+                embed = discord.Embed(
+                    title=f"message has been deleted in {self.client.get_channel(payload.channel_id)}",
+                    timestamp=date)
                 embed.add_field(name="date", value=f"{date}")
             else:
                 date = datetime.datetime.utcnow()
@@ -152,7 +151,7 @@ class Logs(commands.Cog):
             embed = discord.Embed(name=f"{member} has just joined the server", timestamp=datetime.datetime.utcnow())
             embed.set_author(name=f"{member}", icon_url=member.avatar_url)
             embed.add_field(name="mention", value=f"{member.mention}")
-            embed.add_field(name="ID", value=f"```py \n Member = {member.id}")
+            embed.add_field(name="ID", value=f" ```python \n Member = {member.id} \n```")
             await self.client.get_channel(get_audit_log_channel_id(member.guild.id)).send(embed=embed)
 
     @commands.Cog.listener()
@@ -161,7 +160,7 @@ class Logs(commands.Cog):
             embed = discord.Embed(name=f"{member} has just left the server", timestamp=datetime.datetime.utcnow())
             embed.set_author(name=f"{member}", icon_url=member.avatar_url)
             embed.add_field(name="mention", value=f"{member.mention}")
-            embed.add_field(name="ID", value=f"```py \n Member = {member.id}")
+            embed.add_field(name="ID", value=f"```python \n Member = {member.id} \n```")
             await self.client.get_channel(get_audit_log_channel_id(member.guild.id)).send(embed=embed)
 
     @commands.Cog.listener()
@@ -223,7 +222,6 @@ class Logs(commands.Cog):
         :type before: discord.Role
         """
         if self.client.get_channel(get_audit_log_channel_id(after.guild.id)) is not None:
-
             embed = discord.Embed(title=f"{after.name} has been updated", timestamp=datetime.datetime.utcnow())
             embed.set_author(name=f"{self.client.user}", icon_url=self.client.user.avatar_url)
             embed.add_field(name=f"role", value=after.name, inline=False)
@@ -241,14 +239,16 @@ class Logs(commands.Cog):
                     embed = discord.Embed(timestamp=date, title=f"{member} has joined {after.channel} ")
                     embed.set_author(name=f"{member}", icon_url=member.avatar_url)
                     embed.add_field(name="channel", value=f"{after.channel}", inline=False)
-                    embed.add_field(name="ID", value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```",
+                    embed.add_field(name="ID",
+                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```",
                                     inline=False)
                     await audit_log_channel.send(embed=embed)
                 elif after.channel is None:
                     embed = discord.Embed(timestamp=date, title=f"{member} has left {before.channel} ")
                     embed.set_author(name=f"{member}", icon_url=member.avatar_url)
                     embed.add_field(name="channel", value=f"{before.channel}", inline=False)
-                    embed.add_field(name="ID", value=f"```py\n Channel = {before.channel.id}\n Member = {member.id}\n```",
+                    embed.add_field(name="ID",
+                                    value=f"```py\n Channel = {before.channel.id}\n Member = {member.id}\n```",
                                     inline=False)
                     await audit_log_channel.send(embed=embed)
                 else:
@@ -268,7 +268,8 @@ class Logs(commands.Cog):
                     embed.set_author(name=f"{member}", icon_url=member.avatar_url)
                     embed.add_field(name="channel", value=f"{after.channel}", inline=False)
                     embed.add_field(name="ID",
-                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```", inline=False)
+                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```",
+                                    inline=False)
                     await audit_log_channel.send(embed=embed)
                 else:
                     embed = discord.Embed(timestamp=date,
@@ -276,7 +277,8 @@ class Logs(commands.Cog):
                     embed.set_author(name=f"{member}", icon_url=member.avatar_url)
                     embed.add_field(name="channel", value=f"{after.channel}", inline=False)
                     embed.add_field(name="ID",
-                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```", inline=False)
+                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```",
+                                    inline=False)
                     await audit_log_channel.send(embed=embed)
             if before.mute != after.mute:
                 if after.mute is True:
@@ -285,7 +287,8 @@ class Logs(commands.Cog):
                     embed.set_author(name=f"{member}", icon_url=member.avatar_url)
                     embed.add_field(name="channel", value=f"{after.channel}", inline=False)
                     embed.add_field(name="ID",
-                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```", inline=False)
+                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```",
+                                    inline=False)
                     await audit_log_channel.send(embed=embed)
                 else:
                     embed = discord.Embed(timestamp=date,
@@ -293,7 +296,8 @@ class Logs(commands.Cog):
                     embed.set_author(name=f"{member}", icon_url=member.avatar_url)
                     embed.add_field(name="channel", value=f"{after.channel}", inline=False)
                     embed.add_field(name="ID",
-                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```", inline=False)
+                                    value=f"```py\n Channel = {after.channel.id}\n Member = {member.id}\n```",
+                                    inline=False)
                     await audit_log_channel.send(embed=embed)
 
     @commands.Cog.listener()
