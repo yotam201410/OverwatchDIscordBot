@@ -25,6 +25,18 @@ def return_category(guild, category_to_check):
     return category_dict[category_to_check]
 
 
+def can_you_join_the_channel(member:discord.Member, channel:discord.VoiceChannel):
+    return  channel.permissions_for(member).connect and channel.permissions_for(member).read_messages
+
+
+def is_channel_locked(channel:discord.VoiceChannel):
+        return not channel.overwrites[channel.guild.roles[0]].pair()[0].connect
+
+
+def is_channel_ghosted(channel:discord.VoiceChannel):
+    return not channel.overwrites[channel.guild.roles[0]].pair()[0].read_messages
+
+
 class Voice(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
@@ -337,20 +349,20 @@ class Voice(commands.Cog):
 
     @voice.command()
     async def permit(self, ctx: commands.Context, member: discord.Member):
-        try:
+        if ctx.author.voice:
             c = Globals.conn.cursor()
             c.execute("""SELECT * FROM voice_data
             WHERE voice_channel_id = :channel_id""", {"channel_id": ctx.author.voice.channel.id})
             data = c.fetchone()
             if data is not None and data[0] == ctx.author.id:
                 if member.id != self.client.user.id:
-                    await ctx.author.voice.channel.set_permissions(member, connect=True, read_messages=False)
-                    await ctx.send(f"{ctx.author.mention} you have permit {member.mention} to join your voice channel")
+                    await ctx.author.voice.channel.set_permissions(member, connect=True, read_messages=True)
+                    await ctx.send(f"{ctx.author.mention} you have permitted {member.mention} to join your voice channel")
                 else:
-                    await ctx.send(f"{ctx.author.mention} you cant reject me :)")
+                    pass
             else:
                 await ctx.send(f"{ctx.author.mention} you are not the owner of the voice")
-        except ValueError:
+        else:
             await ctx.send(f"{ctx.author.mention} you have to be in the voice_channel")
 
     @voice.command()
@@ -407,11 +419,20 @@ class Voice(commands.Cog):
                 return
             c.execute("""select * from voice_data WHERE voice_owner_id = :member_id and guild_id = :guild_id""",
                       {"member.id": voice_user_data[0], "guild_id": ctx.guild.id})
+            voice_data = c.fetchone()
             embed.title = f"{member} personal channel"
             embed.add_field(name="channel name", value=voice_user_data[1])
             embed.add_field(name="voice limit", value=str(voice_user_data[2]))
             embed.set_author(name=str(member), icon_url=member.avatar_url)
-            if
+            if member.voice:
+                if not is_channel_locked(member.voice.channel):
+                    embed.add_field(name="locked",value="False")
+                if not is_channel_ghosted(member.voice.channel):
+                    embed.add_field(name="ghosted",value="False")
+                if member.voice and member.voice.channel.id == voice_data[1] and can_you_join_the_channel(ctx.author,
+                                                                                                          member.voice.channel):
+                    embed.add_field(name="invite link", value=await member.voice.channel.create_invite(max_age=600))
+
             channel = ctx.guild.get_channel(c.fetchone()[1])
             if channel:
 
