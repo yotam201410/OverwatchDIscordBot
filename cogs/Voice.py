@@ -174,11 +174,11 @@ class Voice(commands.Cog):
                         value="if you are in a room which the owner is not in you will be the owner of the room",
                         inline=False)
         embed.add_field(name=f"**{prefix}permit_role**" + "{role (as a name or id)}",
-                        value="permits the role members to join the channel",inline=False)
+                        value="permits the role members to join the channel", inline=False)
         embed.add_field(name=f"**{prefix}reject_role**" + "{role (as a name or id)}",
-                        value="reject the role members to join the channel",inline=False)
+                        value="reject the role members to join the channel", inline=False)
         embed.add_field(name=f"**{prefix}voice info**" + "{optional channel id}",
-                        value="gives you information about the voice channel",inline=False)
+                        value="gives you information about the voice channel", inline=False)
 
         if data[1] is not None:
             await ctx.send(f"you create a channel by joining {self.client.get_channel(data[1])}")
@@ -395,24 +395,31 @@ class Voice(commands.Cog):
             await ctx.send(f"{ctx.author.mention} you have to be in the voice channel")
 
     @voice.command()
-    async def info(self, ctx, channel_id):
+    async def info(self, ctx: commands.Context, member: discord.Member = None):
         c = Globals.conn.cursor()
-        c.execute(""" SELECT * FROM voice_data
-                                WHERE voice_channel_id = :voice_channel_id """,
-                  {"voice_channel_id": channel_id})
-        data = c.fetchone()
-        c.execute("""select * from voice_user_data
-        where voice_owner_id :member_id""", {"member_id": data[0]})
-        data = c.fetchone()
-        if data is not None:
-            owner = await self.client.fetch_user(data[0])
-            embed = discord.Embed(title=f"{owner} personal channel", colour=0x0000ff)
-            embed.set_author(name=str(owner), icon_url=owner.avatar_url)
-            embed.add_field(name="channel name", value=data[1])
-            embed.add_field(name="voice limit", value=str(data[2]))
-            await ctx.send(embed=embed)
+        embed = discord.Embed(colour = 0x0000ff)
+        if member is not None:
+            c.execute("""select * from voice_user_data
+            where voice_owner_id = :member_id""", {"member_id": member.id})
+            voice_user_data = c.fetchone()
+            if voice_user_data is None:
+                await ctx.send(f"{member.mention} has no voice channel")
+                return
+            c.execute("""select * from voice_data WHERE voice_owner_id = :member_id and guild_id = :guild_id""",
+                      {"member.id": voice_user_data[0], "guild_id": ctx.guild.id})
+            embed.title = f"{member} personal channel"
+            embed.add_field(name="channel name", value=voice_user_data[1])
+            embed.add_field(name="voice limit", value=str(voice_user_data[2]))
+            embed.set_author(name=str(member), icon_url=member.avatar_url)
+            if
+            channel = ctx.guild.get_channel(c.fetchone()[1])
+            if channel:
+
+
+
         else:
-            await ctx.send("the channel is was not created by the bot")
+            pass
+        await ctx.send(embed=embed)
 
     @info.error
     async def info_error(self, ctx, error):
@@ -479,12 +486,14 @@ class Voice(commands.Cog):
                 await ctx.send(f"{ctx.author.mention} you are not the owner of the voice")
         except ValueError:
             await ctx.send(f"{ctx.author.mention} you have to be in the voice_channel")
+
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.CommandNotFound):
             await self.help(ctx)
         else:
             raise error
+
 
 def setup(client):
     client.add_cog(Voice(client))

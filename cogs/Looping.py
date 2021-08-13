@@ -22,19 +22,19 @@ def add_headers(sheets):
                 "moderator_id"]
     sheets.worksheet("offences").clear()
     sheets.worksheet("offences").append_row(offences)
-    pug_limit_5 = ["match_id", "guild_id", "red_team_player_1", "red_team_player_2", "red_team_player_3",
-                   "red_team_player_4",
-                   "red_team_player_5", "blue_team_player_1", "blue_team_player_2", "blue_team_player_3",
-                   "blue_team_player_4", "blue_team_player_5", "result"]
-    sheets.worksheet("pug_limit_5").clear()
-    sheets.worksheet("pug_limit_5").append_row(pug_limit_5)
-    pug_limit_6 = ["match_id", "guild_id", "red_team_player_1", "red_team_player_2", "red_team_player_3",
-                   "red_team_player_4",
-                   "red_team_player_5", "red_team_player_6", "blue_team_player_1", "blue_team_player_2",
-                   "blue_team_player_3",
-                   "blue_team_player_4", "blue_team_player_5", "blue_team_player_6", "result"]
-    sheets.worksheet("pug_limit_6").clear()
-    sheets.worksheet("pug_limit_6").append_row(pug_limit_6)
+    # pug_limit_5 = ["match_id", "guild_id", "red_team_player_1", "red_team_player_2", "red_team_player_3",
+    #                "red_team_player_4",
+    #                "red_team_player_5", "blue_team_player_1", "blue_team_player_2", "blue_team_player_3",
+    #                "blue_team_player_4", "blue_team_player_5", "result"]
+    # sheets.worksheet("pug_limit_5").clear()
+    # sheets.worksheet("pug_limit_5").append_row(pug_limit_5)
+    # pug_limit_6 = ["match_id", "guild_id", "red_team_player_1", "red_team_player_2", "red_team_player_3",
+    #                "red_team_player_4",
+    #                "red_team_player_5", "red_team_player_6", "blue_team_player_1", "blue_team_player_2",
+    #                "blue_team_player_3",
+    #                "blue_team_player_4", "blue_team_player_5", "blue_team_player_6", "result"]
+    # sheets.worksheet("pug_limit_6").clear()
+    # sheets.worksheet("pug_limit_6").append_row(pug_limit_6)
 
 
 class Looping(commands.Cog):
@@ -42,7 +42,7 @@ class Looping(commands.Cog):
         self.client = client
         self.updateSheet.start()
 
-    @tasks.loop(minutes=10)
+    @tasks.loop(minutes=2)
     async def updateSheet(self):
         c = Globals.conn.cursor()
         c.execute("""select * from server_preference""")

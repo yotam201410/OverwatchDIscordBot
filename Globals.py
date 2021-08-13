@@ -15,3 +15,5 @@ class Globals:
     creds = ServiceAccountCredentials.from_json_keyfile_name("creds.json", scope)
     client = gspread.authorize(creds)
     sheets = client.open("discord bot db")
+    with open("token.txt",'r') as f:
+        token = f.read()

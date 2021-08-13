@@ -8,10 +8,9 @@ def return_category(guild, category_to_check):
     category_dict = {}
     for i in guild.categories:
         category_dict[i.id] = i
-    try:
+    if category_to_check in category_dict:
         return category_dict[category_to_check]
-    except KeyError:
-        return None
+    return None
 
 
 def in_category(category_to_check, guild):
@@ -202,7 +201,6 @@ class ServerPreference(commands.Cog):
     @setup.command()
     @commands.has_permissions(administrator=True)
     async def voice_create_category(self, ctx, category_id):
-        print(True)
         try:
             category_id = int(category_id)
             if in_category(category_id, ctx.guild):
@@ -225,13 +223,14 @@ class ServerPreference(commands.Cog):
         c.execute("""SELECT * FROM server_preference
                        WHERE guild_id = :guild_id""",
                   {"guild_id": ctx.guild.id})
-        data = c.fetchone()
-        Globals.conn.commit()
-        if data[5] is None or return_category(ctx.guild, data[5]) is None:
+        server_preference_data = c.fetchone()
+        if server_preference_data[5] is None:
             await ctx.send("you didn't use the voice_create_category command")
+        elif return_category(ctx.guild, server_preference_data[5]) is None:
+            await ctx.send(f"{ctx.author.mention} the category with the id of {server_preference_data[5]} does not exist any more")
         else:
-            if data[6] is None or ctx.guild.get_channel(data[6]) is None:
-                voice_channel = await return_category(ctx.guild, data[5]).create_voice_channel(
+            if server_preference_data[6] is None or ctx.guild.get_channel(server_preference_data[6]) is None:
+                voice_channel = await return_category(ctx.guild, server_preference_data[5]).create_voice_channel(
                     name="join to create a channel")
                 c.execute("""UPDATE server_preference
                 SET join_to_create_a_room_channel_id= :channel_id
