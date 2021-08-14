@@ -25,16 +25,22 @@ def return_category(guild, category_to_check):
     return category_dict[category_to_check]
 
 
-def can_you_join_the_channel(member:discord.Member, channel:discord.VoiceChannel):
-    return  channel.permissions_for(member).connect and channel.permissions_for(member).read_messages
+def can_you_join_the_channel(member: discord.Member, channel: discord.VoiceChannel):
+    return channel.permissions_for(member).connect and channel.permissions_for(member).read_messages
 
 
-def is_channel_locked(channel:discord.VoiceChannel):
-        return not channel.overwrites[channel.guild.roles[0]].pair()[0].connect
+def is_channel_locked(channel: discord.VoiceChannel):
+    if channel.guild.roles[0] in channel.overwrites:
+        return channel.overwrites[channel.guild.roles[0]].pair()[1].connect
+    else:
+        return False
 
 
-def is_channel_ghosted(channel:discord.VoiceChannel):
-    return not channel.overwrites[channel.guild.roles[0]].pair()[0].read_messages
+def is_channel_ghosted(channel: discord.VoiceChannel):
+    if channel.guild.roles[0] in channel.overwrites:
+        return channel.overwrites[channel.guild.roles[0]].pair()[1].read_messages
+    else:
+        return False
 
 
 class Voice(commands.Cog):
@@ -150,7 +156,7 @@ class Voice(commands.Cog):
                     Globals.conn.commit()
                     await before.channel.delete()
 
-    @commands.group(name="voice")
+    @commands.group(name="voice", aliases=["vc", "VC", "Vc", "vC"])
     async def voice(self, ctx: commands.Context):
         """
         just creates a group the commands by itself doesnt do any thing
@@ -239,7 +245,10 @@ class Voice(commands.Cog):
                         WHERE voice_channel_id = :voice_channel_id """, {"voice_channel_id": currant_voice_channel.id})
             voice_data = c.fetchone()
             if voice_data[0] == author.id:
-                await currant_voice_channel.set_permissions(ctx.guild.roles[0], connect=False)
+                await currant_voice_channel.edit(
+                    overwrites={ctx.guild.roles[0]: discord.PermissionOverwrite(connect=False),
+                                self.client.user: discord.PermissionOverwrite(connect=True, read_messages=True),
+                                ctx.author: discord.PermissionOverwrite(connect=True, read_messages=True)})
                 await ctx.send(f"{ctx.author.mention} the channel has been locked down")
             else:
                 await ctx.send(f"{ctx.author.mention} you cant lock the channel")
@@ -256,11 +265,14 @@ class Voice(commands.Cog):
                         WHERE voice_channel_id = :voice_channel_id""", {"voice_channel_id": currant_voice_channel.id})
             voice_data = c.fetchone()
             if voice_data[0] == author.id:
-                await currant_voice_channel.set_permissions(ctx.guild.roles[0], connect=True)
+                await currant_voice_channel.edit(
+                    overwrites={ctx.guild.roles[0]: discord.PermissionOverwrite(connect=True),
+                                self.client.user: discord.PermissionOverwrite(connect=True, read_messages=True),
+                                ctx.author: discord.PermissionOverwrite(connect=True, read_messages=True)})
                 await ctx.send(f"{author.mention} the channel has been unlocked")
             else:
-                await ctx.send(f"{author.mention} you d'ont own the voice channel")
-        except ValueError:
+                await ctx.send(f"{author.mention} you dont own the voice channel")
+        except AttributeError:
             await ctx.send(f"{ctx.author.mention} you have to be in the voice channel")
 
     @voice.command()
@@ -357,7 +369,8 @@ class Voice(commands.Cog):
             if data is not None and data[0] == ctx.author.id:
                 if member.id != self.client.user.id:
                     await ctx.author.voice.channel.set_permissions(member, connect=True, read_messages=True)
-                    await ctx.send(f"{ctx.author.mention} you have permitted {member.mention} to join your voice channel")
+                    await ctx.send(
+                        f"{ctx.author.mention} you have permitted {member.mention} to join your voice channel")
                 else:
                     pass
             else:
@@ -376,9 +389,15 @@ class Voice(commands.Cog):
             voice_data = c.fetchone()
             if voice_data != ():
                 if voice_data[0] == author.id:
-                    await currant_voice_channel.set_permissions(ctx.guild.roles[0], read_messages=False)
-                    await currant_voice_channel.set_permissions(ctx.author, read_messages=True)
-                    await ctx.author.send("you have hidden your channel")
+                    await ctx.message.delete()
+                    await currant_voice_channel.edit(
+                        overwrites={ctx.guild.roles[0]: discord.PermissionOverwrite(read_messages=False),
+                                    self.client.user: discord.PermissionOverwrite(connect=True, read_messages=True),
+                                    ctx.author: discord.PermissionOverwrite(connect=True, read_messages=True)})
+                    try:
+                        await ctx.author.send("you have hidden your channel")
+                    except discord.Forbidden:
+                        pass
                 else:
                     await author.send(f"{ctx.author.mention} you cant hide the channel")
             else:
@@ -397,8 +416,15 @@ class Voice(commands.Cog):
             voice_data = c.fetchone()
             if voice_data != ():
                 if voice_data[0] == author.id:
-                    await currant_voice_channel.set_permissions(ctx.guild.roles[0], read_messages=None)
-                    await ctx.author.send("you have reveled your channel")
+                    await ctx.message.delete()
+                    await currant_voice_channel.edit(
+                        overwrites={ctx.guild.roles[0]: discord.PermissionOverwrite(read_messages=True),
+                                    self.client.user: discord.PermissionOverwrite(connect=True, read_messages=True),
+                                    ctx.author: discord.PermissionOverwrite(connect=True, read_messages=True)})
+                    try:
+                        await ctx.author.send("you have reveled your channel")
+                    except discord.Forbidden:
+                        pass
                 else:
                     await author.send(f"you cant revel the channel you ont own it you can use the claim command")
             else:
@@ -409,54 +435,53 @@ class Voice(commands.Cog):
     @voice.command()
     async def info(self, ctx: commands.Context, member: discord.Member = None):
         c = Globals.conn.cursor()
-        embed = discord.Embed(colour = 0x0000ff)
-        if member is not None:
+        embed = discord.Embed(colour=0x0000ff)
+        if member is not None:  # given a member
             c.execute("""select * from voice_user_data
             where voice_owner_id = :member_id""", {"member_id": member.id})
             voice_user_data = c.fetchone()
-            if voice_user_data is None:
+            if voice_user_data is None:  # the member given didnt have a channel
                 await ctx.send(f"{member.mention} has no voice channel")
                 return
-            c.execute("""select * from voice_data WHERE voice_owner_id = :member_id and guild_id = :guild_id""",
-                      {"member.id": voice_user_data[0], "guild_id": ctx.guild.id})
-            voice_data = c.fetchone()
-            embed.title = f"{member} personal channel"
-            embed.add_field(name="channel name", value=voice_user_data[1])
-            embed.add_field(name="voice limit", value=str(voice_user_data[2]))
-            embed.set_author(name=str(member), icon_url=member.avatar_url)
-            if member.voice:
-                if not is_channel_locked(member.voice.channel):
-                    embed.add_field(name="locked",value="False")
-                if not is_channel_ghosted(member.voice.channel):
-                    embed.add_field(name="ghosted",value="False")
-                if member.voice and member.voice.channel.id == voice_data[1] and can_you_join_the_channel(ctx.author,
-                                                                                                          member.voice.channel):
-                    embed.add_field(name="invite link", value=await member.voice.channel.create_invite(max_age=600))
-
-            channel = ctx.guild.get_channel(c.fetchone()[1])
-            if channel:
-
-
-
+            else:
+                embed.title = f"{member} personal channel"
+                embed.add_field(name="channel name", value=voice_user_data[1], inline=False)
+                embed.add_field(name="voice limit",
+                                value=str(voice_user_data[2]) if voice_user_data[2] != 0 else "None")
+                embed.set_author(name=str(member), icon_url=member.avatar_url)
+                c.execute("""select * from voice_data WHERE voice_owner_id = :member_id and guild_id = :guild_id""",
+                          {"member_id": voice_user_data[0], "guild_id": ctx.guild.id})
+                voice_data = c.fetchone()
+                if member.voice and voice_data:  # the member given has an opened channel in this guild
+                    if can_you_join_the_channel(ctx.author, member.voice.channel):  # the author can join the channel
+                        embed.add_field(name="locked", value=str(is_channel_locked(member.voice.channel)))
+                        embed.add_field(name="ghosted", value=str(is_channel_ghosted(member.voice.channel)))
+                        embed.add_field(name="invite link", value=await member.voice.channel.create_invite(max_age=600))
+                    elif not is_channel_ghosted(member.voice.channel):
+                        print("channel is not ghosted")
+                        embed.add_field(name="ghosted", value="False")
+                        embed.add_field(name="locked", value=str(is_channel_locked(member.voice.channel)))
         else:
-            pass
+            c.execute("""select * from voice_user_data
+            where voice_owner_id = :owner_id""", {"owner_id": ctx.author.id})
+            voice_user_data = c.fetchone()
+            if voice_user_data is None:  # the author didnt have a channel
+                await ctx.send(f"{ctx.author.mention} has no voice channel")
+                return
+            else:
+                embed.title = f"{member} personal channel"
+                embed.add_field(name="channel name", value=voice_user_data[1], inline=False)
+                embed.add_field(name="voice limit",
+                                value=str(voice_user_data[2]) if voice_user_data[2] != 0 else "None")
+                embed.set_author(name=str(member), icon_url=ctx.author.avatar_url)
+                c.execute("""select * from voice_data WHERE voice_owner_id = :owner_id and guild_id = :guild_id""",
+                          {"owner_id": voice_user_data[0], "guild_id": ctx.guild.id})
+                voice_data = c.fetchone()
+                if voice_data and ctx.author.voice:
+                    embed.add_field(name="locked", value=str(is_channel_locked(ctx.author.voice.channel)))
+                    embed.add_field(name="ghosted", value=str(is_channel_ghosted(ctx.author.voice.channel)))
+                    embed.add_field(name="invite link", value=await ctx.author.voice.channel.create_invite(max_age=600))
         await ctx.send(embed=embed)
-
-    @info.error
-    async def info_error(self, ctx, error):
-        c = Globals.conn.cursor()
-        c.execute("""select * from voice_user_data
-        where voice_owner_id = :member_id""", {"member_id": ctx.author.id})
-        data = c.fetchone()
-        if data is not None:
-            owner = ctx.author
-            embed = discord.Embed(title=f"{owner} personal channel", colour=0x0000ff)
-            embed.set_author(name=str(owner), icon_url=owner.avatar_url)
-            embed.add_field(name="channel name", value=data[1])
-            embed.add_field(name="voice limit", value=str(data[2]))
-            await ctx.send(embed=embed)
-        else:
-            await ctx.send("you do not have a channel")
 
     @voice.command()
     async def reject_role(self, ctx, og_role: str):
