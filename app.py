@@ -7,23 +7,6 @@ from Globals import Globals
 app = Flask("idk")
 
 
-def getRow(sheet, discord_id):
-    counter = 0
-    data = sheet.get_all_values()
-    for i in data:
-        counter += 1
-        if i[0] == str(discord_id):
-            return counter
-    return None
-
-
-def updateSheet(sheet, discord_id, battleTag, ip_address):
-    row = getRow(sheet, discord_id)
-    sheet.update_cell(row, 1, str(discord_id))
-    sheet.update_cell(row, 2, str(battleTag))
-    sheet.update_cell(row, 3, str(ip_address))
-
-
 def getBattleNetToken(code, region):
     url = "https://%s.battle.net/oauth/token" % region
     body = {"grant_type": 'authorization_code', "code": f"{code}", "redirect_uri": f"{Globals.redirect_URL2}"}
@@ -57,17 +40,26 @@ def login():
     discordUserID = request.args.get('state')
     battleNetToken = getBattleNetToken(battleNetCode, "eu")
     battleTag = getBattleTag(battleNetToken, "eu")
-    sheet = Globals.sheets.worksheet("ow_users")
-    if getRow(sheet, discordUserID) is None:
-        sheet.insert_row([f"{discordUserID}", f"{battleTag}", f"{request.remote_addr}"])
+    c = Globals.conn.cursor()
+    c.execute("""select * from ow_users
+                  where battle_tag = :battle_tag
+                  """, {"battle_tag": battleTag})
+    ow_user_data = c.fetchone()
+    if ow_user_data:
+        c.execute("""update ow_users
+                          set member_id = :member_id , battle_tag = battle_tag, ip_address = :ip
+                          where battle_tag = :battle_tag
+        """, {"member_id": discordUserID, "battle_tag": battleTag, "ip": str(request.remote_addr)})
     else:
-        updateSheet(sheet, discordUserID, battleTag, request.remote_addr)
+        c.execute("""insert into ow_users
+        select :member_id, :battle_tag, :ip """,
+                  {"member_id": discordUserID, "battle_tag": battleTag, "ip": str(request.remote_addr)})
     return Response(f"{battleTag}", status=200)
 
 
 @app.route('/')
 def main():
-    return "your bot is online"
+    return Response("your bot is online", status=200)
 
 
 def run():

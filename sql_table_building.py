@@ -4,7 +4,7 @@ from Globals import Globals
 def idk():
     c = Globals.conn.cursor()
     c.execute("""CREATE TABLE server_preference(
-    guild_id integer PRIMARY KEY UNIQUE,
+    guild_id integer UNIQUE,
     prefix CHAR(5),
     report_mod_channel_id integer,
     mods_role_id integer,
@@ -19,12 +19,12 @@ def idk():
     moderation varchar(5)
     )""")
     c.execute("""CREATE TABLE voice_user_data(
-    voice_owner_id integer PRIMARY KEY UNIQUE,
+    voice_owner_id integer UNIQUE,
     voice_name text(100),
     voice_limit integer)""")
     c.execute("""CREATE TABLE voice_data(
     voice_owner_id integer,
-    voice_channel_id integer PRIMARY KEY UNIQUE,
+    voice_channel_id integer  UNIQUE,
     guild_id integer)""")
     c.execute("""CREATE TABLE member_count(
     guild_id integer PRIMARY KEY UNIQUE,
@@ -40,7 +40,7 @@ def idk():
     treated varchar(5),
     moderator_id integer)""")
     c.execute("""create table pug_limit_5(
-    match_id integer PRIMARY KEY UNIQUE,
+    match_id integer UNIQUE,
     guild_id integer,
     cat_id integer,
     red_team_player_1 integer,
@@ -92,4 +92,9 @@ def idk():
     api varchar(5),
     auto varchar(5)
     )""")
+    c.execute("""create table ow_users(
+    member_id integer unique,
+    battle_tag varchar(20) unique,
+    ip_address varchar(15))
+    """)
     Globals.conn.commit()
