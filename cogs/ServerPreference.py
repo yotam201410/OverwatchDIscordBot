@@ -4,12 +4,10 @@ from discord.ext import commands
 from Globals import Globals
 
 
-def return_category(guild, category_to_check):
-    category_dict = {}
-    for i in guild.categories:
-        category_dict[i.id] = i
-    if category_to_check in category_dict:
-        return category_dict[category_to_check]
+def return_category(guild:discord.Guild, category_id_to_check:int):
+    category_dict = {i.id: i for i in guild.categories}
+    if category_id_to_check in category_dict:
+        return category_dict[category_id_to_check]
     return None
 
 
@@ -86,7 +84,7 @@ class ServerPreference(commands.Cog):
                         inline=False)
         embed.add_field(name="**" + prefix + "setup voice**", value="creates the join to create a channel",
                         inline=False)
-        embed.add_field(name="**" + prefix + "setup member_count**", value="create the member count channel",
+        embed.add_field(name="**" + prefix + "setup server_stats**", value="create the member count channel",
                         inline=False)
         embed.add_field(name="**" + prefix + "setup pug {limit}**",
                         value="create a pugs category with according to the limit",
@@ -239,14 +237,19 @@ class ServerPreference(commands.Cog):
                 await ctx.send("you have already crated a channel ")
 
     @setup.command()
-    async def member_count(self, ctx):
-        category = await ctx.guild.create_category(name="📊 Server Stats 📊")
+    async def server_stats(self, ctx:commands.Context):
         c = Globals.conn.cursor()
-        c.execute("""UPDATE server_preference
-                    SET member_count_category_id = :category_id
-                    WHERE guild_id = :guild_id""", {"category_id": category.id, "guild_id": ctx.guild.id})
-        await ctx.send(f"{ctx.author.mention} you have successfully enabled member count")
-        Globals.conn.commit()
+        c.execute("SELECT member_count_category_id FROM server_preference where guild_id = :guild_id",{"guild_id":ctx.guild.id})
+        server_preference_data = c.fetchone()[0]
+        if not server_preference_data or not return_category(ctx.guild,server_preference_data):
+            category = await ctx.guild.create_category(name="📊 Server Stats 📊")
+            c.execute("""UPDATE server_preference
+                        SET member_count_category_id = :category_id
+                        WHERE guild_id = :guild_id""", {"category_id": category.id, "guild_id": ctx.guild.id})
+            await ctx.send(f"{ctx.author.mention} you have successfully enabled member count")
+            Globals.conn.commit()
+        else:
+            await ctx.send(f"{ctx.author.mention} you all ready have a server stats category")
 
     @setup.command()
     @commands.has_permissions(administrator=True)

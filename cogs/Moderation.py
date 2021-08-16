@@ -143,7 +143,6 @@ class Moderation(commands.Cog):
         await x.pin()
 
     @report.command()
-    @commands.has_permissions(ban_members=True)
     async def all(self, ctx: commands.Context):
         c = Globals.conn.cursor()
         c.execute("""SELECT * FROM server_preference
@@ -435,8 +434,34 @@ class Moderation(commands.Cog):
             await ctx.send(f"{ctx.author.mention} you dont have the permission to use this command")
 
     @commands.command()
+    @commands.has_guild_permissions(kick_members=True)
+    async def kick(self, ctx: commands.Context, member: discord.Member, *args):
+        if moderationEnabled(ctx.guild):
+            if args == ():
+                reason = 'Unspecified'
+            else:
+                reason = ""
+                for arg in args:
+                    if arg.isalpha():
+                        reason += arg + " "
+            embed = discord.Embed(title=f"{member} has been kicked", timestamp=datetime.datetime.now(), colour=0xe74c3c)
+            embed.add_field(name="reason:", value=reason)
+            await member.send(embed=embed)
+            await ctx.guild.kick(member, reason=reason)
+            await ctx.send(embed=embed)
+            c = Globals.conn.cursor()
+            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
+                                    values(?,?,?,?,?,?,?)""",
+                      (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "kick", datetime.datetime.now(),
+                       reason, "false"))
+            Globals.conn.commit()
+        else:
+            await ctx.send(f"{ctx.author.mention} moderation module is not enabled")
+
+    @commands.command()
     async def convictions(self, ctx: commands.Context, member: discord.Member):
-        if ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.kick_members or ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.ban_members or is_a_moderator(ctx.author):
+        if ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.kick_members or ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.ban_members or is_a_moderator(
+                ctx.author):
             if moderationEnabled(ctx.guild):
                 c = Globals.conn.cursor()
                 c.execute("""select * from offences
@@ -458,11 +483,11 @@ class Moderation(commands.Cog):
                             embed.add_field(name="reason", value=offence[6])
                             await ctx.send(embed=embed)
                     elif offence[3] == "kick":
-                        embed = discord.Embed(title=f"{member} **has been kicked**",colour=0xe74c3c)
+                        embed = discord.Embed(title=f"{member} **has been kicked**", colour=0xe74c3c)
                         embed.add_field(name="**reason**", value=offence[6], inline=False)
                         await ctx.send(embed=embed)
                     elif offence[3] == "warn":
-                        embed = discord.Embed(title=f"{member} **has been warned**",colour=0xe74c3c)
+                        embed = discord.Embed(title=f"{member} **has been warned**", colour=0xe74c3c)
                         embed.add_field(name="**reason**", value=offence[6], inline=False)
                         await ctx.send(embed=embed)
                     elif offence[3] == "tempban":
@@ -481,39 +506,42 @@ class Moderation(commands.Cog):
         else:
             await ctx.send(f"{ctx.author.mention} you cant join this channel")
 
-    @commands.group(name="moderation",aliases=["mod","MOD","Mod","Moderation"], invoke_without_command=False)
-    async def moderation(self,ctx):
+    @commands.group(name="moderation", aliases=["mod", "MOD", "Mod", "Moderation"], invoke_without_command=False)
+    async def moderation(self, ctx):
         pass
 
     @moderation.command()
     async def help(self, ctx: commands.Context):
         if moderationEnabled(ctx.guild):
-            embed = discord.Embed(title="moderation help",colour=0xe74c3c)
+            embed = discord.Embed(title="moderation help", colour=0xe74c3c)
             prefix = get_prefix(ctx.guild)
             can_info = False
             empty = True
             if ctx.author.guild_permissions.manage_messages or is_a_moderator(ctx.author):
                 embed.add_field(name=f"{prefix}clear [amount]",
-                                value="clears the amount specified\n **if not given an amount it would delete 1 message",inline=False)
+                                value="clears the amount specified\n **if not given an amount it would delete 1 message",
+                                inline=False)
                 empty = False
             if ctx.author.guild_permissions.mute_members or is_a_moderator(ctx.author):
                 can_info = True
                 embed.add_field(name=f"{prefix}warn [@member] [reason]",
-                                value="warns the member\n **reason is optional**",inline=False)
+                                value="warns the member\n **reason is optional**", inline=False)
                 embed.add_field(name=f"{prefix}mute [@member] [reason]",
-                                value="chat mutes the member\n **reason is optional**",inline=False)
+                                value="chat mutes the member\n **reason is optional**", inline=False)
                 embed.add_field(name=f"{prefix}tempmute [@member] [time] [reason]",
-                                value="chat mutes the member for the specified time\n **reason is optional**\n s - seconds, m - minutes, h - hours, d - days, w - weeks, y - years",inline=False)
+                                value="chat mutes the member for the specified time\n **reason is optional**\n s - seconds, m - minutes, h - hours, d - days, w - weeks, y - years",
+                                inline=False)
             if ctx.author.guild_permissions.kick_members:
                 can_info = True
                 embed.add_field(name=f"{prefix}kick [@member] [reason]",
-                                value="kicks the member\n **reason is optional**",inline=False)
+                                value="kicks the member\n **reason is optional**", inline=False)
             if ctx.author.guild_permissions.ban_members:
                 can_info = True
                 embed.add_field(name=f"{prefix}ban [@member] [reason]",
-                                value="bans the member\n **reason is optional**",inline=False)
+                                value="bans the member\n **reason is optional**", inline=False)
                 embed.add_field(name=f"{prefix}tempban [@member] [time] [reason]",
-                                value="bans the member\n **reason is optional**\n s - seconds, m - minutes, h - hours, d - days, w - weeks, y - years",inline=False)
+                                value="bans the member\n **reason is optional**\n s - seconds, m - minutes, h - hours, d - days, w - weeks, y - years",
+                                inline=False)
             if can_info:
                 empty = False
                 embed.add_field(name=f"{prefix}convictions [@member]",
