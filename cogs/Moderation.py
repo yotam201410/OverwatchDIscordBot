@@ -458,11 +458,11 @@ class Moderation(commands.Cog):
                             embed.add_field(name="reason", value=offence[6])
                             await ctx.send(embed=embed)
                     elif offence[3] == "kick":
-                        embed = discord.Embed(title=f"{member} **has been kicked**")
+                        embed = discord.Embed(title=f"{member} **has been kicked**",colour=0xe74c3c)
                         embed.add_field(name="**reason**", value=offence[6], inline=False)
                         await ctx.send(embed=embed)
                     elif offence[3] == "warn":
-                        embed = discord.Embed(title=f"{member} **has been warned**")
+                        embed = discord.Embed(title=f"{member} **has been warned**",colour=0xe74c3c)
                         embed.add_field(name="**reason**", value=offence[6], inline=False)
                         await ctx.send(embed=embed)
                     elif offence[3] == "tempban":
