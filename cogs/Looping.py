@@ -6,7 +6,7 @@ from Globals import Globals
 def add_headers(sheets):
     server_p = ["guild_id", "prefix", "prefix", "mods_role_id", "helpers_role_id", "join_to_create_a_room_category_id",
                 "join_to_create_a_room_channel_id", "member_count_category_id", "tempmute_role_id",
-                "audit_log_channel_id", "commands_log_channel_id", "pug_match_user_limit"]
+                "audit_log_channel_id", "commands_log_channel_id","pug_player_role", "moderation"]
     sheet = sheets.worksheet("server_preference")
     sheets.worksheet("server_preference").clear()
     sheet.append_row(server_p)

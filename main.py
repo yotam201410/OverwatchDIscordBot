@@ -49,8 +49,8 @@ def update_data():
     for i in range(1, len(d)):
         try:
             c.execute(
-                """insert into server_preference(guild_id,prefix,report_mod_channel_id,mods_role_id,helpers_role_id,join_to_create_a_room_category_id,join_to_create_a_room_channel_id,member_count_category_id,tempmute_role_id,audit_log_channel_id,commands_log_channel_id,pug_match_user_limit)
-                values (?,?,?,?,?,?,?,?,?,?,?,?)""", removeNone(d[i]))
+                """insert into server_preference(guild_id,prefix,report_mod_channel_id,mods_role_id,helpers_role_id,join_to_create_a_room_category_id,join_to_create_a_room_channel_id,member_count_category_id,tempmute_role_id,audit_log_channel_id,commands_log_channel_id,pug_player_role,moderation)
+                values (?,?,?,?,?,?,?,?,?,?,?,?,?)""", removeNone(d[i]))
         except sqlite3.IntegrityError:
             pass
     d = Globals.sheets.worksheet("voice_user_data").get_all_values()

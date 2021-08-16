@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 from Globals import Globals
 
@@ -25,7 +25,6 @@ def check_if_it_commands(category):
     c.execute("""select cat_id from pug_channels 
     where cat_id = :cat_id""", {"cat_id": category.id})
     data = c.fetchone()
-    print(data)
     return True if data is not None else False
 
 
@@ -286,12 +285,9 @@ class ServerPreference(commands.Cog):
     @setup.command()
     async def delete_pug(self, ctx: commands.Context, category_id: int):
         cat = self.client.get_channel(category_id)
-        print(cat)
         if cat is not None:
-            print("its not none")
             if check_if_it_commands(cat):
                 for channel in cat.channels:
-                    print(channel)
                     await channel.delete()
                 c = Globals.conn.cursor()
                 c.execute("""delete from pug_channels
