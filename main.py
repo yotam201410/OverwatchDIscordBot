@@ -4,7 +4,6 @@ import os
 import discord
 from dateutil.parser import parse
 from discord.ext import commands
-import app
 import sqlite3
 from app import keep_alive
 import sql_table_building

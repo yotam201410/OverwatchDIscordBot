@@ -565,7 +565,7 @@ class Moderation(commands.Cog):
                       {"member_id": member.id, "guild_id": member.guild.id, "end_date": datetime.datetime.now(),
                        "kind": "tempmute"})
             offences = c.fetchall()
-            if offences != ():
+            if offences is not []:
                 role = member.guild.get_role(role_id)
                 await member.add_roles(role)
 
