@@ -147,7 +147,6 @@ async def on_command_error(ctx: commands.Context, error):
 
 @client.event
 async def on_ready():
-    Globals.conn.commit()
     global times
     if times == 0:
         c = Globals.conn.cursor()

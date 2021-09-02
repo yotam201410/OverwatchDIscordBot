@@ -1,3 +1,7 @@
 
 token.txt
 test.py
+*.pyc
+*.db
+test.py
+token.txt

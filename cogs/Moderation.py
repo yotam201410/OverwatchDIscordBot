@@ -3,7 +3,6 @@ import re
 from datetime import timedelta
 import discord
 from discord.ext import commands, tasks
-
 from Globals import Globals
 
 

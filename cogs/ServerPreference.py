@@ -4,7 +4,7 @@ from discord.ext import commands
 from Globals import Globals
 
 
-def return_category(guild:discord.Guild, category_id_to_check:int):
+def return_category(guild: discord.Guild, category_id_to_check: int):
     category_dict = {i.id: i for i in guild.categories}
     if category_id_to_check in category_dict:
         return category_dict[category_id_to_check]
@@ -224,7 +224,8 @@ class ServerPreference(commands.Cog):
         if server_preference_data[5] is None:
             await ctx.send("you didn't use the voice_create_category command")
         elif return_category(ctx.guild, server_preference_data[5]) is None:
-            await ctx.send(f"{ctx.author.mention} the category with the id of {server_preference_data[5]} does not exist any more")
+            await ctx.send(
+                f"{ctx.author.mention} the category with the id of {server_preference_data[5]} does not exist any more")
         else:
             if server_preference_data[6] is None or ctx.guild.get_channel(server_preference_data[6]) is None:
                 voice_channel = await return_category(ctx.guild, server_preference_data[5]).create_voice_channel(
@@ -237,11 +238,12 @@ class ServerPreference(commands.Cog):
                 await ctx.send("you have already crated a channel ")
 
     @setup.command()
-    async def server_stats(self, ctx:commands.Context):
+    async def server_stats(self, ctx: commands.Context):
         c = Globals.conn.cursor()
-        c.execute("SELECT member_count_category_id FROM server_preference where guild_id = :guild_id",{"guild_id":ctx.guild.id})
+        c.execute("SELECT member_count_category_id FROM server_preference where guild_id = :guild_id",
+                  {"guild_id": ctx.guild.id})
         server_preference_data = c.fetchone()[0]
-        if not server_preference_data or not return_category(ctx.guild,server_preference_data):
+        if not server_preference_data or not return_category(ctx.guild, server_preference_data):
             category = await ctx.guild.create_category(name="📊 Server Stats 📊")
             c.execute("""UPDATE server_preference
                         SET member_count_category_id = :category_id
