@@ -38,48 +38,69 @@ def removeNone(value: tuple):
                 ret.append(datetime.datetime.strptime(i, "%Y-%m-%d %H:%M:%S.%f"))
             else:
                 ret.append(i)
-    print(ret)
     return tuple(ret)
 
 
 def update_data():
     c = Globals.conn.cursor()
     d = Globals.sheets.worksheet("server_preference").get_all_values()
-    for i in range(1, len(d)):
+    for i in d:
+        data = removeNone(i)
         try:
             c.execute(
                 """insert into server_preference(guild_id,prefix,report_mod_channel_id,mods_role_id,helpers_role_id,join_to_create_a_room_category_id,join_to_create_a_room_channel_id,member_count_category_id,tempmute_role_id,audit_log_channel_id,commands_log_channel_id,pug_player_role,moderation)
-                values (?,?,?,?,?,?,?,?,?,?,?,?,?)""", removeNone(d[i]))
+                values (?,?,?,?,?,?,?,?,?,?,?,?,?)""", data)
         except sqlite3.IntegrityError:
-            pass
+            c.execute("""update server_preference
+                                   set prefix = :prefix,report_mod_channel_id = :report_mod_channel_id,mods_role_id = :mods_role_id,helpers_role_id=:helpers_role_id,join_to_create_a_room_category_id=:join_to_create_a_room_category_id,join_to_create_a_room_channel_id=:join_to_create_a_room_channel_id,member_count_category_id=:member_count_category_id,tempmute_role_id=:tempmute_role_id,audit_log_channel_id=:audit_log_channel_id,commands_log_channel_id=:commands_log_channel_id,pug_player_role=:pug_player_role,moderation=:moderation
+                                   where guild_id = :guild_id
+""",
+                      {"guild_id": data[0], "prefix": data[1], "report_mod_channel_id": data[2],
+                       "mods_role_id": data[3], "helpers_role_id": data[4],
+                       "join_to_create_a_room_channel_id": data[5],
+                       "join_to_create_a_room_category_id": data[6], "member_count_category_id": data[7],
+                       "tempmute_role_id": data[8], "audit_log_channel_id": data[9], "commands_log_channel_id": data[10],
+                       "pug_player_role": data[11], "moderation": data[12]})
     d = Globals.sheets.worksheet("voice_user_data").get_all_values()
-    for i in range(1, len(d)):
+    for i in d:
+        data = removeNone(i)
         try:
             c.execute("""insert into voice_user_data(voice_owner_id,voice_name,voice_limit)
-            values (?,?,?)""", removeNone(removeNone(d[i])))
+            values (?,?,?)""", data)
         except sqlite3.IntegrityError:
-            pass
+            c.execute("""update voice_user_data
+                        where voice_owner_id = :voice_owner_id
+                        set voice_name = :voice_name,voice_limit = :voice_limit""",
+                      {"voice_owner_id": data[0], "voice_name": data[1], "voice_limit": data[2]})
     d = Globals.sheets.worksheet("voice_data").get_all_values()
-    for i in range(1, len(d)):
+    for i in d:
+        data = removeNone(i)
         try:
             c.execute("""insert into voice_data(voice_owner_id,voice_channel_id,guild_id)
-            values (?,?,?)""", removeNone(d[i]))
+            values (?,?,?)""", i)
         except sqlite3.IntegrityError:
-            pass
+            c.execute("""update voice_data
+            where voice_channel_id = :voice_channel_id
+            set voice_owner_id = :voice_owner_id,guild_id = :guild_id""",
+                      {"voice_owner_id": data[0], "voice_channel_id": data[1], "guild_id": data[2]})
     d = Globals.sheets.worksheet("member_count").get_all_values()
-    for i in range(1, len(d)):
+    for i in d:
+        data = removeNone(i)
         try:
             c.execute("""insert into member_count(guild_id,member_count_channel_id)
-            values (?,?)""", removeNone(d[i]))
+            values (?,?)""", data)
         except sqlite3.IntegrityError:
-            pass
+            c.execute("""update member_count
+            where guild_id = :guild_id
+            set member_count_channel_id = :member_count_channel_id""",
+                      {"member_count_channel_id": data[1], "guild_id": data[0]})
     d = Globals.sheets.worksheet("offences").get_all_values()
-    for i in range(1, len(d)):
+    for i in d:
         try:
             c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,end_date,reason,treated,moderator_id)
-            values (?,?,?,?,?,?,?,?,?)""", removeNone(d[i]))
+            values (?,?,?,?,?,?,?,?,?)""", removeNone(i))
         except sqlite3.IntegrityError:
-            pass
+            print("some thing went wrong offences")
     # d = Globals.sheets.worksheet("pug_limit_5").get_all_values()
     # for i in range(1, len(d)):
     #     c.execute("""insert into pug_limit_5(match_id,guild_id,red_team_player_1,red_team_player_2,red_team_player_3,red_team_player_4,red_team_player_5,blue_team_player_1,blue_team_player_2,blue_team_player_3,blue_team_player_4,blue_team_player_5,result)
