@@ -30,8 +30,8 @@ def idk():
     guild_id integer PRIMARY KEY UNIQUE,
     member_count_channel_id integer)""")
     c.execute("""CREATE TABLE offences(
+    offence_id INTEGER primary key,
     member_id integer,
-    member_name tinytext,
     guild_id integer,
     kind tinytext,
     start_date datetime,

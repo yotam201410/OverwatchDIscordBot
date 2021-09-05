@@ -17,7 +17,6 @@ def update_sheets_data(table):
                 column = "None"
             columns.append(column)
         write_data.append(columns)
-
     worksheet = Globals.sheets.worksheet(table)
     worksheet.update(write_data)
 
@@ -30,7 +29,7 @@ class Looping(commands.Cog):
     @tasks.loop(minutes=2)
     async def updateSheet(self):
         c = Globals.conn.cursor()
-        tables = ["server_preference", "voice_user_data", "voice_data", "member_count", "ow_users"]
+        tables = ["server_preference", "voice_user_data", "voice_data", "member_count", "ow_users", "offences"]
         try:
             for table in tables:
                 update_sheets_data(table)

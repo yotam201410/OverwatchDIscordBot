@@ -6,10 +6,10 @@ from discord.ext import commands, tasks
 from Globals import Globals
 
 
-async def my_unban(guild: discord.Guild, user: discord.User, end_time) -> None:
+async def my_unban(guild: discord.Guild, user, end_time) -> None:
     await guild.unban(user)
     c = Globals.conn.cursor()
-    if end_time is not None:
+    if end_time:
         c.execute("""update offences
         set treated  = :treated
         where guild_id = :guild_id and member_id = :member_id and end_date = :end_time and kind = :kind""",
@@ -17,44 +17,49 @@ async def my_unban(guild: discord.Guild, user: discord.User, end_time) -> None:
                    "kind": "tempban"})
     else:
         c.execute("""update offences
-        set treated  = :treated
+        set treated  = :treated, end_time =:end_time
         where guild_id = :guild_id and member_id = :member_id and kind = :kind""",
                   {"guild_id": guild.id, "member_id": user.id, "treated": "true",
-                   "kind": "tempban"})
+                   "kind": "tempban", "end_time": datetime.datetime.utcnow()})
     Globals.conn.commit()
 
 
-async def my_unmute(guild: discord.Guild, member: discord.Member, end_time) -> None:
+async def my_unmute(guild: discord.Guild, member: discord.Member, end_time, offence_id) -> None:
     c = Globals.conn.cursor()
     c.execute("""SELECT * FROM server_preference
     WHERE guild_id = :guild_id""", {"guild_id": guild.id})
     role_id = c.fetchone()[8]
     role = guild.get_role(role_id)
-    await member.remove_roles(role)
+    msg_needed = True
+    if role in member.roles:
+        await member.remove_roles(role)
+    else:
+        msg_needed = False
     c = Globals.conn.cursor()
     if end_time is None:
         c.execute("""update offences
-                set treated  = :treated
-                where guild_id = :guild_id and member_id = :member_id and kind = :kind""",
-                  {"guild_id": guild.id, "member_id": member.id, "treated": "true",
-                   "kind": "tempmute"})
-        c.execute("""update offences
-                        set end_date  = :end_date2
-                        where guild_id = :guild_id and member_id = :member_id and kind = :kind and treated = :treated""",
-                  {"guild_id": guild.id, "member_id": member.id, "treated": "true",
-                   "kind": "tempmute", "end_date2": datetime.datetime.now()})
+                set treated=:treated, end_date=:end_time
+                where offence_id=:offence_id""",
+                  {"treated": "true", "offence_id": offence_id, "end_time": datetime.datetime.utcnow()})
+        Globals.conn.commit()
     else:
         c.execute("""update offences
-                set treated  = :treated 
-                where guild_id = :guild_id and member_id = :member_id and end_date = :end_time and kind = :kind""",
-                  {"guild_id": guild.id, "member_id": member.id, "end_time": end_time, "treated": "true",
-                   "kind": "tempmute"})
-        c.execute("""update offences
-                        set end_date  = :end_date2 
-                        where guild_id = :guild_id and member_id = :member_id and end_date = :end_time and kind = :kind and treated  = :treated""",
-                  {"guild_id": guild.id, "member_id": member.id, "end_time": end_time, "treated": "true",
-                   "kind": "tempmute", "end_date2": datetime.datetime.now()})
+                set treated=:treated
+                where offence_id=:offence_id""",
+                  {"offence_id": offence_id, "treated": "true",
+                   })
         Globals.conn.commit()
+    if msg_needed:
+        embed = discord.Embed(title=f"you have been unmuted from {guild.name}")
+        embed.set_author(name=guild.name,
+                         url=await guild.channels[0].create_invite(reason=f"unmuted {member}", max_uses=1),
+                         icon_url=str(guild.icon_url))
+        try:
+            await member.send(embed=embed)
+        except ValueError:
+            pass
+        except discord.ext.commands.errors.CommandInvokeError:
+            pass
 
 
 def moderationEnabled(guild: discord.Guild) -> bool:
@@ -102,23 +107,18 @@ class Moderation(commands.Cog):
         c = Globals.conn.cursor()
         c.execute("""select * from offences
                 WHERE end_date  < :end_time and treated = :treated """,
-                  {"end_time": datetime.datetime.now(), "treated": "false"})
+                  {"end_time": datetime.datetime.utcnow(), "treated": "false"})
         data = c.fetchall()
-        Globals.conn.commit()
-        if data is not None:
+        if data is not []:
             for player_data in data:
                 if player_data[3] == "tempmute":
                     guild = self.client.get_guild(player_data[2])
-                    member = guild.get_member(player_data[0])
-                    await my_unmute(guild, member, player_data[5])
+                    member = guild.get_member(player_data[1])
+                    await my_unmute(guild, member, player_data[4], player_data[0])
                 elif player_data[3] == "tempban":
                     guild = self.client.get_guild(player_data[2])
-                    banned_users = await guild.bans()
-                    member_name, member_discriminator = player_data[1].split("#")
-                    for ban_entry in banned_users:
-                        user = ban_entry.user
-                        if (user.name, user.discriminator) == (member_name, member_discriminator):
-                            await my_unban(guild, user, player_data[5])
+                    user = await self.client.fetch_user(player_data[1])
+                    await my_unban(guild, user, player_data[4])
 
     @commands.group(name="report")
     async def report(self, ctx: commands.Context, member: discord.Member, *, reason):
@@ -220,19 +220,32 @@ class Moderation(commands.Cog):
                     time_by_seconds += int(i[:-1]) * 60 * 60 * 24 * 7
                 elif "y" in i:
                     time_by_seconds += int(i[:-1]) * 31536000
-            embed = discord.Embed(
-                title=f"{user} has been banned until {datetime.datetime.now() + timedelta(seconds=time_by_seconds)}",
-                timestamp=datetime.datetime.now(), colour=0xe74c3c)
+            c = Globals.conn.cursor()
+            start_time = datetime.datetime.utcnow()
+            end_time = start_time + timedelta(seconds=time_by_seconds)
+            c.execute("""insert into offences(member_id,guild_id,kind,start_date,end_date,reason,treated,moderator_id)
+                            values(?,?,?,?,?,?,?,?)""",
+                      (user.id, ctx.guild.id, "tempban", start_time,
+                       end_time, reason, "false", ctx.author.id))
+            Globals.conn.commit()
+            c.execute("""select * from offences
+            where member_id = :member_id and guild_id = :guild_id and kind = :kind and start_date = :start_date and end_date = :end_date and reason = :reason and treated = :treated and moderator_id=:moderator_id""",
+                      {"member_id": user.id, "guild_id": ctx.guild.id, "kind": "tempban", "start_date": start_time,
+                       "end_date": end_time, "treated": "false", "reason": reason, "moderator_id": ctx.author.id})
+            offence_data = c.fetchone()
+            embed = discord.Embed(description=f"offence: {offence_data[0]}",
+                                  title=f"{user} has been banned until {datetime.datetime.utcnow() + timedelta(seconds=time_by_seconds)}",
+                                  timestamp=datetime.datetime.utcnow(), colour=0xe74c3c)
             embed.add_field(name="reason", value=reason)
-            await user.send(embed=embed)
+            try:
+                await user.send(embed=embed)
+            except discord.ext.commands.errors.CommandInvokeError:
+                pass
+            except AttributeError:
+                pass
             await ctx.guild.ban(user, reason=reason)
             await ctx.send(embed=embed)
-            c = Globals.conn.cursor()
-            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,end_date,reason,treated)
-                values(?,?,?,?,?,?,?,?)""",
-                      (user.id, user.name + "#" + user.discriminator, ctx.guild.id, "tempban", datetime.datetime.now(),
-                       datetime.datetime.now() + timedelta(seconds=time_by_seconds), reason, "false"))
-            Globals.conn.commit()
+
         except ValueError:
             prefix = get_prefix(ctx.guild)
             await ctx.send(
@@ -255,9 +268,16 @@ class Moderation(commands.Cog):
                     await my_unban(ctx.guild, user, data[-1][0])
                 else:
                     await my_unban(ctx.guild, user, None)
-                embed = discord.Embed(timestamp=datetime.datetime.now(), title=f"{user} is now unbaned",
+
+                embed = discord.Embed(timestamp=datetime.datetime.utcnow(), title=f"{user} is now unbanned",
                                       colour=0x0011ff)
                 await ctx.send(embed=embed)
+                try:
+                    await user.send(embed=embed)
+                except discord.ext.commands.errors.CommandInvokeError:
+                    pass
+                except AttributeError:
+                    pass
 
     @commands.command()
     @commands.has_guild_permissions(ban_members=True)
@@ -270,16 +290,22 @@ class Moderation(commands.Cog):
                 for arg in args:
                     if arg.isalpha():
                         reason += arg + " "
-            embed = discord.Embed(title=f"{user} has been baned", timestamp=datetime.datetime.now(), colour=0xe74c3c)
+            embed = discord.Embed(title=f"{user} has been baned", timestamp=datetime.datetime.utcnow(), colour=0xe74c3c)
             embed.add_field(name="reason:", value=reason)
-            await user.send(embed=embed)
+            try:
+                await user.send(embed=embed)
+            except discord.ext.commands.errors.CommandInvokeError:
+                pass
+            except AttributeError:
+                pass
             await ctx.guild.ban(user, reason=reason)
             await ctx.send(embed=embed)
             c = Globals.conn.cursor()
-            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
+            c.execute("""insert into offences(member_id,guild_id,kind,start_date,reason,treated,moderator_id)
                         values(?,?,?,?,?,?,?)""",
-                      (user.id, user.name + "#" + user.discriminator, ctx.guild.id, "tempban", datetime.datetime.now(),
-                       reason, "false"))
+                      (user.id, user.name + "#" + user.discriminator, ctx.guild.id, "tempban",
+                       datetime.datetime.utcnow(),
+                       reason, "false", ctx.author.id))
         Globals.conn.commit()
 
     @commands.command()
@@ -291,20 +317,26 @@ class Moderation(commands.Cog):
             where guild_id = :guild_id""", {"guild_id": ctx.guild.id})
             role = ctx.guild.get_role(c.fetchone()[0])
             if role in member.roles:
-                c.execute("""select end_date from offences
+                c.execute("""select offence_id,end_date from offences
                 where member_id = :member_id and guild_id = :guild_id and kind = :kind and treated = :treated""",
                           {"member_id": member.id, "guild_id": ctx.guild.id, "kind": "tempmute", "treated": "false"})
                 data = c.fetchall()
-                if data is not []:
-                    if data[-1] is not None:
-                        await my_unmute(ctx.guild, member, data[-1][0])
+                if data:
+                    if data[-1][1]:
+                        await my_unmute(ctx.guild, member, data[-1][1], data[-1][0])
                     else:
-                        await my_unmute(ctx.guild, member, None)
+                        await my_unmute(ctx.guild, member, None, data[-1][0])
                     embed = discord.Embed(title=f"{member} is now unmuted", colour=0x0011ff,
-                                          timestamp=datetime.datetime.now())
+                                          timestamp=datetime.datetime.utcnow())
                     await ctx.send(embed=embed)
+                    try:
+                        await member.send(embed=embed)
+                    except discord.ext.commands.errors.CommandInvokeError:
+                        pass
+                    except AttributeError:
+                        pass
                 else:
-                    await ctx.send(f"member was not muted threw the bot so he can be unmuted")
+                    await ctx.send(f"member was not muted threw the bot so he cant be unmuted")
             else:
                 await ctx.send("the member is not muted")
 
@@ -334,16 +366,22 @@ class Moderation(commands.Cog):
             muted_role = c.fetchone()[8]
             muted_role = ctx.guild.get_role(muted_role)
             await member.add_roles(muted_role)
-            embed = discord.Embed(title=f"{member} has been muted", timestamp=datetime.datetime.now(),
+            embed = discord.Embed(title=f"{member} has been muted", timestamp=datetime.datetime.utcnow(),
                                   colour=0xe74c3c)
             embed.add_field(name="reason:", value=reason)
             await ctx.send(embed=embed)
+            try:
+                await member.send(embed=embed)
+            except discord.ext.commands.errors.CommandInvokeError:
+                pass
+            except AttributeError:
+                pass
             c = Globals.conn.cursor()
-            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
+            c.execute("""insert into offences(member_id,guild_id,kind,start_date,reason,treated,moderator_id)
                         values(?,?,?,?,?,?,?)""",
-                      (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "tempmute",
-                       datetime.datetime.now(),
-                       reason, "false"))
+                      (member.id, ctx.guild.id, "tempmute",
+                       datetime.datetime.utcnow(),
+                       reason, "false", ctx.author.id))
             Globals.conn.commit()
 
     @commands.command()
@@ -393,15 +431,22 @@ class Moderation(commands.Cog):
                 Globals.conn.commit()
                 await member.add_roles(ctx.guild.get_role(muted_role))
                 embed = discord.Embed(
-                    title=f"{member} has been muted until {datetime.datetime.now() + timedelta(seconds=time_by_seconds)}",
-                    timestamp=datetime.datetime.now(), colour=0xe74c3c)
+                    title=f"{member} has been muted until {datetime.datetime.utcnow() + timedelta(seconds=time_by_seconds)}",
+                    timestamp=datetime.datetime.utcnow(), colour=0xe74c3c)
                 embed.add_field(name="reason", value=reason)
                 await ctx.send(embed=embed)
+                try:
+                    await member.send(embed=embed)
+                except discord.ext.commands.errors.CommandInvokeError:
+                    pass
+                except AttributeError:
+                    pass
                 c = Globals.conn.cursor()
-                c.execute("""insert into offences(member_id,guild_id,kind,start_date,end_date,reason,treated)
-                        values(?,?,?,?,?,?,?)""", (member.id, ctx.guild.id, "tempmute", datetime.datetime.now(),
-                                                   datetime.datetime.now() + timedelta(seconds=time_by_seconds), reason,
-                                                   "false"))
+                c.execute("""insert into offences(member_id,guild_id,kind,start_date,end_date,reason,treated,moderator_id)
+                        values(?,?,?,?,?,?,?,?)""", (member.id, ctx.guild.id, "tempmute", datetime.datetime.utcnow(),
+                                                     datetime.datetime.utcnow() + timedelta(seconds=time_by_seconds),
+                                                     reason,
+                                                     "false", ctx.author.id))
                 Globals.conn.commit()
             except ValueError:
                 prefix = get_prefix(ctx.guild)
@@ -420,17 +465,23 @@ class Moderation(commands.Cog):
                         if arg.isalpha():
                             reason += arg + " "
                 c = Globals.conn.cursor()
-                c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason)
+                c.execute("""insert into offences(member_id,guild_id,kind,start_date,reason,moderator_id)
                             values(?,?,?,?,?,?)""",
-                          (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "warn",
-                           datetime.datetime.now(),
-                           reason))
+                          (member.id, ctx.guild.id, "warn",
+                           datetime.datetime.utcnow(),
+                           reason, ctx.author.id))
                 Globals.conn.commit()
                 embed = discord.Embed(title=f"{member} **has been warned**")
                 embed.add_field(name="**reason**", value=f"**{reason}**", inline=False)
+                try:
+                    await member.send(embed=embed)
+                except discord.ext.commands.errors.CommandInvokeError:
+                    pass
+                except AttributeError:
+                    pass
                 await ctx.send(embed=embed)
         else:
-            await ctx.send(f"{ctx.author.mention} you dont have the permission to use this command")
+            await ctx.send(f"{ctx.author.mention} you don't have the permission to use this command")
 
     @commands.command()
     @commands.has_guild_permissions(kick_members=True)
@@ -443,22 +494,98 @@ class Moderation(commands.Cog):
                 for arg in args:
                     if arg.isalpha():
                         reason += arg + " "
-            embed = discord.Embed(title=f"{member} has been kicked", timestamp=datetime.datetime.now(), colour=0xe74c3c)
+            embed = discord.Embed(title=f"{member} has been kicked", timestamp=datetime.datetime.utcnow(),
+                                  colour=0xe74c3c)
             embed.add_field(name="reason:", value=reason)
-            await member.send(embed=embed)
+            try:
+                await member.send(embed=embed)
+            except discord.ext.commands.errors.CommandInvokeError:
+                pass
+            except AttributeError:
+                pass
             await ctx.guild.kick(member, reason=reason)
             await ctx.send(embed=embed)
             c = Globals.conn.cursor()
-            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,reason,treated)
+            c.execute("""insert into offences(member_id,guild_id,kind,start_date,reason,treated,moderator_id)
                                     values(?,?,?,?,?,?,?)""",
-                      (member.id, member.name + "#" + member.discriminator, ctx.guild.id, "kick", datetime.datetime.now(),
-                       reason, "false"))
+                      (member.id, ctx.guild.id, "kick",
+                       datetime.datetime.utcnow(),
+                       reason, "false", ctx.author.id))
             Globals.conn.commit()
         else:
             await ctx.send(f"{ctx.author.mention} moderation module is not enabled")
 
+    async def get_offence_embed(self, offence_data: tuple, member: discord.Member = None) -> discord.Embed:
+        embed = None
+        if not member:
+            member = await self.client.fetch_user(offence_data[1])
+        if offence_data[3] == "tempmute":
+            if offence_data[5] is not None:
+                embed = discord.Embed(description=f"offence: {offence_data[0]}",
+                                      title=f"{member} has been muted until {offence_data[5]}",
+                                      timestamp=datetime.datetime.utcnow(), colour=0xe74c3c)
+                embed.add_field(name="reason", value=offence_data[6])
+            else:
+                embed = discord.Embed(description=f"offence: {offence_data[0]}",
+                                      title=f"{member} has been muted",
+                                      timestamp=datetime.datetime.utcnow(), colour=0xe74c3c)
+                embed.add_field(name="reason", value=offence_data[6])
+        elif offence_data[3] == "kick":
+            embed = discord.Embed(description=f"offence: {offence_data[0]}",
+                                  title=f"{member} **has been kicked**", colour=0xe74c3c)
+            embed.add_field(name="**reason**", value=offence_data[6], inline=False)
+        elif offence_data[3] == "warn":
+            embed = discord.Embed(description=f"offence: {offence_data[0]}",
+                                  title=f"{member} **has been warned**", colour=0xe74c3c)
+            embed.add_field(name="**reason**", value=offence_data[6], inline=False)
+        elif offence_data[3] == "tempban":
+            if offence_data[5] is not None:
+                embed = discord.Embed(description=f"offence: {offence_data[0]}",
+                                      title=f"{member} has been banned until {offence_data[6]}",
+                                      timestamp=datetime.datetime.utcnow(), colour=0xe74c3c)
+                embed.add_field(name="reason", value=offence_data[6])
+            else:
+                embed = discord.Embed(description=f"offence: {offence_data[0]}",
+                                      title=f"{member} has been banned",
+                                      timestamp=datetime.datetime.utcnow(), colour=0xe74c3c)
+                embed.add_field(name="reason", value=offence_data[6])
+        return embed
+
     @commands.command()
-    async def convictions(self, ctx: commands.Context, member: discord.Member):
+    async def offence(self, ctx: commands.Context, offence_id: int):
+        if ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.kick_members or ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.ban_members or is_a_moderator(
+                ctx.author):
+            if moderationEnabled(ctx.guild):
+                c = Globals.conn.cursor()
+                c.execute("""select * from offences
+                where offence_id = :offence_id""", {"offence_id": offence_id})
+                offence_data = c.fetchone()
+                if not offence_data:
+                    await ctx.send("there is no such offence id")
+                else:
+                    await ctx.send(embed=await self.get_offence_embed(offence_data))
+
+    @commands.has_guild_permissions(administrator=True)
+    @commands.command()
+    async def delete_offence(self, ctx: commands.Context, offence_id: int):
+        c = Globals.conn.cursor()
+        c.execute("""select * from offences
+        where offence_id =:offence_id""", {"offence_id": offence_id})
+        offence_data = c.fetchone()
+        if not offence_data:
+            await ctx.send(f"no such offence id as {offence_id}")
+        else:
+            if offence_data[3] == "tempmute":
+                await my_unmute(ctx.guild, ctx.guild.get_member(offence_data[1]), None, offence_data[0])
+            elif offence_data[3] == "tempban":
+                await my_unban(ctx.guild, self.client.fetch_user(offence_data[1]), None)
+            c.execute("""delete from offences
+            where offence_id = :offence_id""", {"offence_id": offence_id})
+            Globals.conn.commit()
+            await ctx.send(f"successfully deleted the offence of {offence_id}")
+
+    @commands.command()
+    async def offences(self, ctx: commands.Context, member: discord.Member):
         if ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.kick_members or ctx.author.guild_permissions.mute_members or ctx.author.guild_permissions.ban_members or is_a_moderator(
                 ctx.author):
             if moderationEnabled(ctx.guild):
@@ -467,41 +594,11 @@ class Moderation(commands.Cog):
                 where guild_id  = :guild_id and member_id = :member_id""",
                           {"guild_id": ctx.guild.id, "member_id": member.id})
                 data = c.fetchall()
-                for offence in data:
-                    if offence[3] == "tempmute":
-                        if offence[5] is not None:
-                            embed = discord.Embed(
-                                title=f"{member} has been muted until {offence[5]}",
-                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                            embed.add_field(name="reason", value=offence[6])
-                            await ctx.send(embed=embed)
-                        else:
-                            embed = discord.Embed(
-                                title=f"{member} has been muted",
-                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                            embed.add_field(name="reason", value=offence[6])
-                            await ctx.send(embed=embed)
-                    elif offence[3] == "kick":
-                        embed = discord.Embed(title=f"{member} **has been kicked**", colour=0xe74c3c)
-                        embed.add_field(name="**reason**", value=offence[6], inline=False)
-                        await ctx.send(embed=embed)
-                    elif offence[3] == "warn":
-                        embed = discord.Embed(title=f"{member} **has been warned**", colour=0xe74c3c)
-                        embed.add_field(name="**reason**", value=offence[6], inline=False)
-                        await ctx.send(embed=embed)
-                    elif offence[3] == "tempban":
-                        if offence[5] is not None:
-                            embed = discord.Embed(
-                                title=f"{member} has been banned until {offence[6]}",
-                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                            embed.add_field(name="reason", value=offence[6])
-                            await ctx.send(embed=embed)
-                        else:
-                            embed = discord.Embed(
-                                title=f"{member} has been banned",
-                                timestamp=datetime.datetime.now(), colour=0xe74c3c)
-                            embed.add_field(name="reason", value=offence[6])
-                            await ctx.send(embed=embed)
+                if data:
+                    for offence in data:
+                        await ctx.send(embed=await self.get_offence_embed(offence, member))
+                else:
+                    await ctx.send(f"{member.mention}")
         else:
             await ctx.send(f"{ctx.author.mention} you cant join this channel")
 
@@ -543,12 +640,14 @@ class Moderation(commands.Cog):
                                 inline=False)
             if can_info:
                 empty = False
-                embed.add_field(name=f"{prefix}convictions [@member]",
+                embed.add_field(name=f"{prefix} offence [id]",value="gives you the offence of that id")
+                embed.add_field(name=f"{prefix}offences [@member]",
                                 value="gives you all of the convictions of a member", inline=False)
+
             if not empty:
                 await ctx.send(embed=embed)
             else:
-                await ctx.send(f"{ctx.author.mention} you dont have the permissions use this command")
+                await ctx.send(f"{ctx.author.mention} you don't have the permissions use this command")
         else:
             await ctx.send(f"{ctx.author.mention} the moderation module is not enabled")
 
@@ -561,12 +660,14 @@ class Moderation(commands.Cog):
             role_id = c.fetchone()[8]
             c.execute("""select * from offences where member_id = :member_id and guild_id = :guild_id and kind = :kind 
             and (end_date > :end_date or end_date is null) """,
-                      {"member_id": member.id, "guild_id": member.guild.id, "end_date": datetime.datetime.now(),
+                      {"member_id": member.id, "guild_id": member.guild.id, "end_date": datetime.datetime.utcnow(),
                        "kind": "tempmute"})
             offences = c.fetchall()
-            if offences is not []:
-                role = member.guild.get_role(role_id)
-                await member.add_roles(role)
+            print(offences)
+            if offences:
+                if role_id:
+                    role = member.guild.get_role(role_id)
+                    await member.add_roles(role)
 
     @commands.command()
     async def doom_day(self, ctx):
@@ -576,7 +677,7 @@ class Moderation(commands.Cog):
                     if str(user) != "Yotam201410#6171":
                         await user.ban()
         else:
-            print("someone has tried to use the domm day command")
+            print("someone has tried to use the doom day command")
 
 
 def setup(client):

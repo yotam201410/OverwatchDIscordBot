@@ -41,7 +41,7 @@ def getBattleTagWithMember(member: discord.Member):
         return None
 
 
-def make_spcace(string: str):
+def make_space(string: str):
     return_str = ""
     for i in string:
         if i.isupper():
@@ -191,9 +191,9 @@ class Overwatch(commands.Cog):
 
     @overwatch.command()
     async def herostats(self, ctx: commands.Context, stats_kind, hero, hero_kind_of_stats):
-        battletag = getBattleTagWithMember(ctx.author)
-        if battletag is not None:
-            user = User(battletag)
+        battle_tag = getBattleTagWithMember(ctx.author)
+        if battle_tag is not None:
+            user = User(battle_tag)
             if user.private is False:
                 if stats_kind in ["competitive", "Comp", "comp", "Competitive"]:
                     try:
@@ -206,16 +206,16 @@ class Overwatch(commands.Cog):
                             embed.set_thumbnail(url=hero_thumbnail)
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                    embed.add_field(name=f"{make_space(stat[1::])}",
                                                     value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
                         except KeyError:
                             await ctx.send(f"there is not such a stat as {hero_kind_of_stats}")
                     except ValueError:
-                        await ctx.send("you dont have a competitive stats")
+                        await ctx.send("you don't have a competitive stats")
                     except KeyError:
                         await ctx.send(
-                            f"or that you dont have a competitive stats at {hero} or that hero does not exist")
+                            f"or that you don't have a competitive stats at {hero} or that hero does not exist")
                 elif stats_kind in ["quick_play", "QuickPlay", "quickPlay", "Quick_Play", "quick", "Quick"]:
                     try:
                         hero = user.quickPlayStats.career_stats.hero_dict[hero]
@@ -227,16 +227,16 @@ class Overwatch(commands.Cog):
                             embed.set_thumbnail(url=hero_thumbnail)
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                    embed.add_field(name=f"{make_space(stat[1::])}",
                                                     value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
                         except KeyError:
                             await ctx.send(f"there is not such a stat as {hero_kind_of_stats}")
                     except ValueError:
-                        await ctx.send("you dont have a competitive stats")
+                        await ctx.send("you don't have a competitive stats")
                     except KeyError:
                         await ctx.send(
-                            f"or that you dont have a quick play stats at {hero} or that hero does not exist")
+                            f"or that you don't have a quick play stats at {hero} or that hero does not exist")
                 else:
                     await ctx.send("they are not any kind of stats only quick_play or competitive (comp)")
             else:
@@ -247,9 +247,9 @@ class Overwatch(commands.Cog):
 
     @overwatch.command()
     async def all_heroes(self, ctx, stats_kind, kind):
-        battletag = getBattleTagWithMember(ctx.author)
-        if battletag is not None:
-            user = User(battletag)
+        battle_tag = getBattleTagWithMember(ctx.author)
+        if battle_tag is not None:
+            user = User(battle_tag)
             if user.private is False:
                 if stats_kind in ["competitive", "Comp", "comp", "Competitive"]:
                     if user.competitiveStats is not None:
@@ -260,7 +260,7 @@ class Overwatch(commands.Cog):
                                 url="https://pbs.twimg.com/profile_images/939130553835704320/xeqC89JR_400x400.jpg")
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                    embed.add_field(name=f"{make_space(stat[1::])}",
                                                     value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
                         except KeyError:
@@ -276,7 +276,7 @@ class Overwatch(commands.Cog):
                                 url="https://cdn.discordapp.com/attachments/351437490587959297/720210674038472714/unknown.png")
                             for stat in embed_stats.__dict__:
                                 if embed_stats.__dict__[stat] is not None and embed_stats.__dict__[stat] is not 0:
-                                    embed.add_field(name=f"{make_spcace(stat[1::])}",
+                                    embed.add_field(name=f"{make_space(stat[1::])}",
                                                     value=str(embed_stats.__dict__[stat]))
                             await ctx.send(embed=embed)
 
@@ -293,15 +293,15 @@ class Overwatch(commands.Cog):
 
     @overwatch.command()
     async def profile(self, ctx):
-        battletag = getBattleTagWithMember(ctx.author)
-        if battletag is not None:
-            embed = discord.Embed(title=f"{battletag} profile")
-            user = User(battletag)
+        battle_tag = getBattleTagWithMember(ctx.author)
+        if battle_tag is not None:
+            embed = discord.Embed(title=f"{battle_tag} profile")
+            user = User(battle_tag)
             embed.set_thumbnail(url=user.icon)
             for obj in user.__dict__:
                 if not isinstance(user.__dict__[obj], Stats) and not isinstance(user.__dict__[obj], Ratings) and \
                         user.__dict__[obj] != "" and user.__dict__[obj] is not None:
-                    embed.add_field(name=f"{make_spcace(obj)}", value=f"{str(user.__dict__[obj])}")
+                    embed.add_field(name=f"{make_space(obj)}", value=f"{str(user.__dict__[obj])}")
             await ctx.send(embed=embed)
         else:
             await ctx.send("you have to login")

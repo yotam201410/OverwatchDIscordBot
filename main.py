@@ -26,7 +26,7 @@ def is_date(string, fuzzy=False):
         return False
 
 
-def removeNone(value: tuple):
+def removeNone(value: tuple) -> tuple:
     ret = []
     for i in value:
         if i == "None":
@@ -59,7 +59,8 @@ def update_data():
                        "mods_role_id": data[3], "helpers_role_id": data[4],
                        "join_to_create_a_room_channel_id": data[5],
                        "join_to_create_a_room_category_id": data[6], "member_count_category_id": data[7],
-                       "tempmute_role_id": data[8], "audit_log_channel_id": data[9], "commands_log_channel_id": data[10],
+                       "tempmute_role_id": data[8], "audit_log_channel_id": data[9],
+                       "commands_log_channel_id": data[10],
                        "pug_player_role": data[11], "moderation": data[12]})
     d = Globals.sheets.worksheet("voice_user_data").get_all_values()
     for i in d:
@@ -96,11 +97,18 @@ def update_data():
                       {"member_count_channel_id": data[1], "guild_id": data[0]})
     d = Globals.sheets.worksheet("offences").get_all_values()
     for i in d:
+        data = removeNone(i)
         try:
-            c.execute("""insert into offences(member_id,member_name,guild_id,kind,start_date,end_date,reason,treated,moderator_id)
-            values (?,?,?,?,?,?,?,?,?)""", removeNone(i))
+            c.execute("""insert into offences(offence_id,member_id,guild_id,kind,start_date,end_date,reason,treated,moderator_id)
+            values (?,?,?,?,?,?,?,?,?)""", data)
         except sqlite3.IntegrityError:
-            print("some thing went wrong offences")
+            c.execute("""update offences
+            set member_id=:member_id, guild_id=:guild_id,kind=:kind, start_date=:start_date, end_date=:end_date,reason=:reason, treated =:treated, moderator_id =:moderator_id
+            where offence_id = :offence_id""",
+                      {"offence_id": data[0], "member_id": data[1], "guild_id": data[2],
+                       "kind": data[3],
+                       "start_date": data[4], "end_date": data[5], "reason": data[6], "treated": data[7],
+                       "moderator_id": data[8]})
     # d = Globals.sheets.worksheet("pug_limit_5").get_all_values()
     # for i in range(1, len(d)):
     #     c.execute("""insert into pug_limit_5(match_id,guild_id,red_team_player_1,red_team_player_2,red_team_player_3,red_team_player_4,red_team_player_5,blue_team_player_1,blue_team_player_2,blue_team_player_3,blue_team_player_4,blue_team_player_5,result)
@@ -183,8 +191,8 @@ async def on_ready():
             update_data()
             for guild in client.guilds:
                 c.execute("""INSERT INTO server_preference(guild_id,prefix)
-            SELECT :guild_id, :prefix
-            WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
+             SELECT :guild_id, :prefix
+             WHERE NOT EXISTS (SELECT 1 FROM server_preference WHERE guild_id = :guild_id)""",
                           {"guild_id": guild.id, "prefix": "!"})
         for filename in os.listdir("cogs"):
             if filename.endswith(".py") and filename != "__init__.py":
