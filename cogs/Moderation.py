@@ -558,7 +558,7 @@ class Moderation(commands.Cog):
             if moderationEnabled(ctx.guild):
                 c = Globals.conn.cursor()
                 c.execute("""select * from offences
-                where offence_id = :offence_id""", {"offence_id": offence_id})
+                where offence_id = :offence_id and guild_id=:guild_id""", {"offence_id": offence_id,"guild_id":ctx.guild.id})
                 offence_data = c.fetchone()
                 if not offence_data:
                     await ctx.send("there is no such offence id")
@@ -570,7 +570,7 @@ class Moderation(commands.Cog):
     async def delete_offence(self, ctx: commands.Context, offence_id: int):
         c = Globals.conn.cursor()
         c.execute("""select * from offences
-        where offence_id =:offence_id""", {"offence_id": offence_id})
+        where offence_id =:offence_id and guild_id =:guild_id""", {"offence_id": offence_id,"guild_id":ctx.guild.id})
         offence_data = c.fetchone()
         if not offence_data:
             await ctx.send(f"no such offence id as {offence_id}")
